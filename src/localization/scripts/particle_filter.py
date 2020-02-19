@@ -6,7 +6,11 @@ import rospy
 from std_msgs.msg import String
 from filterpy.monte_carlo import systematic_resample
 from scipy.stats import norm
-from numpy.random import uniform, randn, random
+from numpy.random import uniform, randn, random, seed
+
+# initialize global
+global error_val
+error_val = 10000
 
 # Particle Filter based on the following repository:
 # https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/12-Particle-Filters.ipynb
@@ -15,9 +19,9 @@ from numpy.random import uniform, randn, random
 
 class ParticleFilter(object):
     def __init__(self, N, sensor_locations=None, sensor_max=None,
-                 wall_lengths=[20,20], sensor_std_error=.01,
+                 wall_lengths=[20,20], sensor_std_error=.05,
                  initial_x=None):
-
+        
         # initialize attributes
         self.sensor_locations = sensor_locations
         self.sensor_max = sensor_max
@@ -29,10 +33,11 @@ class ParticleFilter(object):
             self.particles = self.create_gaussian_particles(
                 mean=initial_x, std=(0.5, 0.5, np.pi/4), N=N)
         else:
-            self.particles = self.create_uniform_particles((0,-20), (0,20), (-3.14159, 3.14159), N)
+            L1 = wall_lengths[0]
+            L2 = wall_lengths[1]
+            self.particles = self.create_uniform_particles((0,-L2), (0,L1), (-3.14159, 3.14159), N)
         
         self.weights = np.ones(N) / N
-        
 
     def create_uniform_particles(self, x_range, y_range, hdg_range, N):
         particles = np.empty((N, 3))
@@ -50,7 +55,7 @@ class ParticleFilter(object):
         particles[:, 2] = np.arctan2(np.sin(particles[:, 2]), np.cos(particles[:, 2]))
         return particles
 
-    def predict(self, u, std, dt=1.):
+    def predict(self, u, std, dt=0.2):
         """ move according to control input u (heading change, velocity)
         with noise Q (std heading change, std velocity)`"""
 
@@ -84,14 +89,14 @@ class ParticleFilter(object):
     def estimate(self):
         """returns mean and variance of the weighted particles"""
 
-        pos = self.particles[:, 0:2]
+        pos = self.particles[:, 0:3]
         mean = np.average(pos, weights=self.weights, axis=0)
         var  = np.average((pos - mean)**2, weights=self.weights, axis=0)
 
-        max_ind = np.argmax(self.weights)
-        best_est = self.particles[max_ind]
+        # max_ind = np.argmax(self.weights)
+        # best_est = self.particles[max_ind]
 
-        return [best_est, mean, var]
+        return [mean, var]
     
     def resample_simple(self):
         N = len(self.particles)
@@ -115,7 +120,7 @@ class ParticleFilter(object):
     def neff(self):
         return 1. / np.sum(np.square(self.weights))  
 
-    def update_step(self, z, u, plot_points=False):
+    def update_step(self, z, u, u_std=[.1,.05], plot_points=False):
         N = len(self.particles)
 
         # predict step
@@ -127,7 +132,7 @@ class ParticleFilter(object):
         # resample if too few effective particles
         if self.neff() < N/2:
             self.resample_simple()
-            # assert np.allclose(self.weights, 1/N)
+            # self.resample_syst()
 
         # estimate mean and variance
         est = self.estimate()
@@ -151,6 +156,8 @@ class ParticleFilter(object):
 
     # returns distance from sensor to walls given robot position and sensor location
     def find_sensor_dist(self, pos, sensor_loc):
+        global error_val
+
         # extract values from pos
         x = pos[0]
         y = pos[1]
@@ -184,77 +191,30 @@ class ParticleFilter(object):
 
         return dist
 
-class IRSensorArray(object):
-    def __init__(self, N, wall_lengths, sensor_locations, sensor_max, initial_x):
-        # initialize attributes
-        self.sensor_max = sensor_max
-        self.ir_vals = None
-
-        # initialize particle filter        
-        self.filter = ParticleFilter(ParticleFilter(N, sensor_locations=sensor_locations, 
-                                                    sensor_max=sensor_max, wall_lengths=wall_lengths, 
-                                                    initial_x=initial_x))
-
-        # initialize ROS
-        rospy.init_node('listener', anonymous=True)
-        rospy.Subscriber("ir_all", String, self.callback)
-
-        # run particle filter update as fast as it can calculate
-        rate = rospy.Rate(10)
-        while not rospy.is_shutdown():
-            sensor_readings = self.get_sensor_readings()
-            best_est = pf.update_step(sensor_readings, (0,0))
-
-            rospy.loginfo(best_est)
-            rate.sleep()
-
-    def callback(self, data):
-        msg = data.data
-        self.vals = msg.strip().split(' ')
-        self.vals = [float(x) for x in self.vals]
-
-    def get_sensor_readings(self):
-        global error_val
-
-        sensor_readings = []
-        for i, val in enumerate(self.vals):
-            if val > self.sensor_max[i]:
-                sensor_readings.append(error_val)
-            else:
-                sensor_readings.append(val / 1000)
-
-        return sensor_readings
-
 if __name__ == '__main__':
-    global error_val
-    error_val = 10000
+    global error
+
+    seed(2)
+    plt.figure()
 
     N = 100
-    wall_lengths = [20, 20]
-    sensor_locations = ([0,-1], [1,-1], [1,0], [1,1], [0,1])
-    sensor_max = [50, 50, 50, 50, 50]
+    wall_lengths = [1.524, 0.9144]
+    sensor_locations = ([0,1], [1,0], [0,-1])
+    sensor_max = [50, 50, 50]
+    sensor_readings = [error_val, 0.5, 0.6]
     initial_x = None
+    u_std = [0.1, 0.05]
 
-    test = True
+    pf = ParticleFilter(N, wall_lengths=wall_lengths, sensor_locations=sensor_locations, 
+                        sensor_max=sensor_max, initial_x=initial_x)
 
-    if test:
-        plt.figure()
+    for iter in range(20):
+        best_est = pf.update_step(sensor_readings, (0,0), u_std=u_std)
+        print(best_est)
 
-        sensor_locations = ([0,1], [1,0], [0,-1])
-        sensor_readings = [5, 5, error_val]
-        initial_x = [-5, 5, 0]
+    d1 = pf.find_sensor_dist(best_est, sensor_locations[0])
+    d2 = pf.find_sensor_dist(best_est, sensor_locations[1])
+    d3 = pf.find_sensor_dist(best_est, sensor_locations[2])
+    print("validation dists: %f %f %f" %(d1, d2, d3))
 
-        pf = ParticleFilter(N, sensor_locations=sensor_locations, sensor_max=sensor_max, initial_x=initial_x)
-
-        for iter in range(20):
-            best_est = pf.update_step(sensor_readings, (0,0))
-            print(best_est)
-
-        d1 = pf.find_sensor_dist(best_est, sensor_locations[0])
-        d2 = pf.find_sensor_dist(best_est, sensor_locations[1])
-        d3 = pf.find_sensor_dist(best_est, sensor_locations[2])
-        print("validation dists: %f %f %f" %(d1, d2, d3))
-
-        plt.show()
-    else:
-        sensor_array = IRSensorArray(N, wall_lengths, sensor_locations, sensor_max, initial_x)
+    plt.show()
