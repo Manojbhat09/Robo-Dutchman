@@ -19,7 +19,7 @@ error_val = 10000
 
 class ParticleFilter(object):
     def __init__(self, N, sensor_locations=None, sensor_max=None,
-                 wall_lengths=[20,20], sensor_std_error=.05,
+                 wall_lengths=[20,20], sensor_std_error=.01,
                  initial_x=None):
         
         # initialize attributes
@@ -31,7 +31,7 @@ class ParticleFilter(object):
         # initialize particles and weights
         if initial_x is not None:
             self.particles = self.create_gaussian_particles(
-                mean=initial_x, std=(0.5, 0.5, np.pi/4), N=N)
+                mean=initial_x, std=(0.01, 0.01, np.pi/10), N=N)
         else:
             L1 = wall_lengths[0]
             L2 = wall_lengths[1]
@@ -55,7 +55,7 @@ class ParticleFilter(object):
         particles[:, 2] = np.arctan2(np.sin(particles[:, 2]), np.cos(particles[:, 2]))
         return particles
 
-    def predict(self, u, std, dt=0.2):
+    def predict(self, u, std, dt=0.1):
         """ move according to control input u (heading change, velocity)
         with noise Q (std heading change, std velocity)`"""
 
@@ -208,8 +208,8 @@ if __name__ == '__main__':
     pf = ParticleFilter(N, wall_lengths=wall_lengths, sensor_locations=sensor_locations, 
                         sensor_max=sensor_max, initial_x=initial_x)
 
-    for iter in range(20):
-        best_est = pf.update_step(sensor_readings, (0,0), u_std=u_std)
+    for iter in range(1):
+        best_est = pf.update_step(sensor_readings, (0,0), u_std=u_std, plot_points=True)
         print(best_est)
 
     d1 = pf.find_sensor_dist(best_est, sensor_locations[0])
