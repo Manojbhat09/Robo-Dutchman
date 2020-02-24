@@ -19,7 +19,7 @@
 
 // Hebi parameters
 #define GROUP_NAME "arm_teleop_config_space_hebi_group"
-#define FAMILY_NAME "robodutchman"
+#define FAMILY_NAME "RoboDutchman"
 #define NAME_1 "shoulder"
 #define NAME_2 "elbow"
 #define NAME_3 "wrist1"
@@ -166,7 +166,7 @@ class TeleopArm {
         //Create a client which uses the service to find the size of a group
         ros::ServiceClient size_client =
             this.nh.serviceClient<SizeSrv>(
-            "/hebiros/"+GROUP_NAME+"/size");
+            "/hebiros/size");   
 
         EntryListSrv entry_list_srv;
         AddGroupFromNamesSrv add_group_srv;
@@ -194,10 +194,10 @@ class TeleopArm {
     registerSubsAndPubs() {
         this.hebi_fb_sub= this.nh.subscribe(
             "/hebiros/"+GROUP_NAME+"/feedback/joint_state",
-            BUFFER_SIZE, hebi_fb_callback);
+            BUFFER_SIZE, this.hebi_fb_callback);
 
         this.joy_fb_sub = this.nh.subscribe(
-            "joy", BUFFER_SIZE, joy_fb_callback);
+            "/joy", BUFFER_SIZE, this.joy_fb_callback);
 
         this.hebi_cmd_pub = this.nh.advertise<sensor_msgs::JointState>(
             "/hebiros/"+GROUP_NAME+"/command/joint_state", BUFFER_SIZE);
