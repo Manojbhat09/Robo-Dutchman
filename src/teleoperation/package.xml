@@ -1,0 +1,15 @@
+<package format="2">
+    <name>teleoperation</name>
+    <version>1.0.0</version>
+    <description>
+        This package provides teleoperation control of the Robo Dutchman
+    </description>
+    <maintainer email="calenr@andrew.cmu.edu">Calen Robinson</maintainer>
+    <license>TODO</license>
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <build_depend>roscpp</build_depend>
+
+    <exec_depend>roscpp</exec_depend>
+</package>
+
