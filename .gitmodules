@@ -1,0 +1,6 @@
+[submodule "src/hebiros"]
+	path = src/hebiros
+	url = https://github.com/HebiRobotics/HEBI-ROS.git
+[submodule "src/hebi_cpp_api_ros"]
+	path = src/hebi_cpp_api_ros
+	url = https://github.com/HebiRobotics/hebi_cpp_api_ros.git
