@@ -1,6 +1,12 @@
  
 <launch>
-  <!-- <node pkg="joy" type="joy_node" name="joystick"/> -->
+  <node pkg="joy" type="joy_node" name="joystick">
+    <rosparam>
+      dev: /dev/input/js1
+    </rosparam>
+  </node>
+
   <node pkg="teleoperation" type="teleop.py" name="teleop" output="screen"/>
+
   <node pkg="hebiros" type="hebiros_node" name="hebi"/>
 </launch>
