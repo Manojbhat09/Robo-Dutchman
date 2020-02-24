@@ -67,7 +67,7 @@ class TeleopArm {
         this.initializeHebiCmdAndDb();
     }
 
-    step() {
+    void step() {
         // Don't do anything until we have heard from
         // HEBI and the joysticks
         if (!this.recievedFirstHebiFb || !this.recievedFirstJoyFb) return;
@@ -113,7 +113,7 @@ class TeleopArm {
     ros::Subscriber hebi_fb_sub;
     ros::Subscriber joy_fb_sub;
 
-    hebi_fb_callback(sensor_msgs::JointState data) {
+    void hebi_fb_callback(sensor_msgs::JointState data) {
         this.hebi_fb = data;
         if(!recievedFirstHebiFb) {
             this.hebi_cmd = data;
@@ -121,7 +121,7 @@ class TeleopArm {
         }
     }
 
-    joy_fb_callback(sensor_msgs::Joy data) {
+    void joy_fb_callback(sensor_msgs::Joy data) {
         this.joy_fb_prev = this.joy_fb;
         this.joy_fb = data;
         recievedFirstJoyFb = true;
@@ -150,7 +150,7 @@ class TeleopArm {
         }
     }
 
-    hebiLookup() {
+    void hebiLookup() {
         //This code is taken from hebiros basic example 1
 
         //Create a client which uses the service to see the entry list of modules
@@ -191,7 +191,7 @@ class TeleopArm {
                 group_name.c_str(), size_srv.response.size);
     }
 
-    registerSubsAndPubs() {
+    void registerSubsAndPubs() {
         this.hebi_fb_sub= this.nh.subscribe(
             "/hebiros/"+GROUP_NAME+"/feedback/joint_state",
             BUFFER_SIZE, hebi_fb_callback);
@@ -203,7 +203,7 @@ class TeleopArm {
             "/hebiros/"+GROUP_NAME+"/command/joint_state", BUFFER_SIZE);
     }
 
-    initializeHebiCmdAndFb() {
+    void initializeHebiCmdAndFb() {
         this.hebi_cmd.name.push_back(FAMILY+"/"+NAME_1);
         this.hebi_cmd.name.push_back(FAMILY+"/"+NAME_2);
         this.hebi_cmd.name.push_back(FAMILY+"/"+NAME_3);
