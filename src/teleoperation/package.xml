@@ -6,10 +6,13 @@
     </description>
     <maintainer email="calenr@andrew.cmu.edu">Calen Robinson</maintainer>
     <license>TODO</license>
+
     <buildtool_depend>catkin</buildtool_depend>
 
-    <build_depend>roscpp</build_depend>
+    <depend>roscpp</depend>
+    <depend>joy</depend>
+    <depend>sensor_msgs></depend>
+    <depend>hebi_cpp_api</depend>
 
-    <exec_depend>roscpp</exec_depend>
 </package>
 
