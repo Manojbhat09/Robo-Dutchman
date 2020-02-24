@@ -23,6 +23,7 @@ class DemoWindow(QtWidgets.QMainWindow):
         self.graphWidget.showGrid(x=True, y=True)
         self.graphWidget.setXRange(-2, 0)
         self.graphWidget.setYRange(0, 2)
+        self.graphWidget.addLegend()
 
         # initialize attributes
         self.u = [0,0]
@@ -31,10 +32,12 @@ class DemoWindow(QtWidgets.QMainWindow):
         self.est_state = self.state
 
         # initialize filter
-        N = 100
+        N = 50
         wall_lengths = [2, 2]
-        self.sensor_locations = ([0,-1], [1,-1], [1,0], [1,1], [0,1])
-        self.sensor_readings = [0, 0, 0, 0, 0]
+        # self.sensor_locations = ([0,-1], [1,-1], [1,0], [1,1], [0,1])
+        self.sensor_locations = ([1,0], [1,-1], [0,-1], [-1,-1], [-1,0], [-1,1], [0,1], [1,1])
+        # self.sensor_readings = [0, 0, 0, 0, 0]
+        self.sensor_readings = [0, 0, 0, 0, 0, 0, 0, 0]
         sensor_max = [50, 50, 50, 50, 50]
         initial_x = [-0.5, 1.5, 0]
 
@@ -47,7 +50,7 @@ class DemoWindow(QtWidgets.QMainWindow):
 
         # setup timer to run particle filter at 5 Hz
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(200)
+        self.timer.setInterval(50)
         self.timer.timeout.connect(self.timer_callback)
         self.timer.start()
 
@@ -60,6 +63,7 @@ class DemoWindow(QtWidgets.QMainWindow):
     def timer_callback(self):
         u_std = [0.1, 0.05]
         self.est_state = self.filter.update_step(self.sensor_readings, self.u, u_std=u_std)
+        u_std = [0, 0]
 
     def callback(self, data):
         self.u = [data.linear.x, data.angular.z]
