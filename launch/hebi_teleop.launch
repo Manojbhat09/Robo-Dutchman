@@ -1,4 +1,4 @@
- 
+
 <launch>
   <node pkg="joy" type="joy_node" name="joystick">
     <rosparam>
@@ -6,7 +6,7 @@
     </rosparam>
   </node>
 
-  <node pkg="teleoperation" type="teleop.py" name="teleop" output="screen"/>
+  <node pkg="teleoperation" type="teleop_arm.py" name="teleop_arm" output="screen"/>
 
   <node pkg="hebiros" type="hebiros_node" name="hebi"/>
 </launch>
