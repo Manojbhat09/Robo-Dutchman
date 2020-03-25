@@ -11,7 +11,6 @@ wheel_radius = 0.0635; % 2.5in = 0.0635m
 wheel_separation = 0.2286; % 9in = 0.2286m
 state = [0 0 0]; % [x, y, th]
 prev_pos = 0;
-dt = 0.1;
 
 %% Main Dead Reckoning Loop
 while (true)
@@ -33,6 +32,8 @@ while (true)
     
     right_diff = pos(2) - prev_pos(2);
     right_diff = right_diff * wheel_radius;
+    
+    prev_pos = pos;
     
     % determine angular and linear velocities
     v = (right_diff + left_diff)/2;
@@ -61,4 +62,6 @@ while (true)
     state(1) = state(1) + (1/6)*(k00 + 2*(k10 + k20) + k30);
     state(2) = state(2) + (1/6)*(k01 + 2*(k11 + k21) + k31);
     state(3) = state(3) + (1/6)*(k02 + 2*(k12 + k22) + k32);
+    
+    disp(state);
 end
