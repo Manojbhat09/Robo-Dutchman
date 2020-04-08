@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 # license removed for brevity
+
+# Reference web pages
+# http://wiki.ros.org/hebiros
+# https://github.com/HebiRobotics/HEBI-ROS
+# https://github.com/HebiRobotics/HEBI-ROS/blob/master/hebiros_basic_examples/src/example_04_trajectory_node.cpp#L105
+# http://wiki.ros.org/actionlib_tutorials/Tutorials/SimpleActionClient
+# https://github.com/ros/common_tutorials/blob/hydro-devel/actionlib_tutorials/scripts/fibonacci_client.py
+# http://wiki.ros.org/actionlib_tutorials/Tutorials/Writing%20a%20Callback%20Based%20Simple%20Action%20Client
+# http://wiki.ros.org/actionlib
+# https://docs.ros.org/api/actionlib/html/classactionlib_1_1simple__action__server_1_1SimpleActionServer.html
+
+
 import rospy
 import actionlib
 
