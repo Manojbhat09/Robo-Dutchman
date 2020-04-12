@@ -25,7 +25,7 @@ from std_msgs.msg import String
 global NODE_NAME, NaN
 global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 
-NODE_NAME = "arm_planner"
+NODE_NAME = "arm_planner_node"
 NaN = float("NaN")
 
 # Hebi names
