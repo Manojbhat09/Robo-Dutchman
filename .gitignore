@@ -3,3 +3,5 @@ devel
 .vscode
 *.swp
 **.swp
+*.swo
+**.swo
