@@ -3,7 +3,7 @@ currentDir = fileparts(mfilename('fullpath'));
 addpath(fullfile(currentDir , 'lib', 'hebi'));
 
 %% Initialize robot and cmd
-robot = HebiLookup.newGroupFromNames('RoboDutchman', {'joint1','joint2','joint3'});
+robot = HebiLookup.newGroupFromNames('RoboDutchman', {'LeftWheel','RightWheel'});
 cmd = CommandStruct();
 
 %% Initialize attributes
@@ -13,11 +13,12 @@ state = [0 0 0]; % [x, y, th]
 prev_pos = 0;
 
 %% Main Dead Reckoning Loop
-while (true)
+while (true)   
     fbk = robot.getNextFeedback();
     
     % verify feedback working as expected
     pos = fbk.position;
+    pos(2) = pos(2) * (-1);
     disp(pos);
     
     % disregard initial update
