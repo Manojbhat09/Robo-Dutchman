@@ -14,10 +14,11 @@
 
 import rospy
 import actionlib
+import numpy as np
 
-from hebiros.action import Trajectory
 from hebiros.srv import EntryListSrv, AddGroupFromNamesSrv, SizeSrv, SetCommandLifetimeSrv
-from hebiros.msg import WaypointMsg
+from hebiros.msg import WaypointMsg, TrajectoryAction, TrajectoryGoal
+
 import hebiros.msg
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
@@ -48,15 +49,15 @@ class TeleopNode(object):
         self.recievedFirstHebiFb = False
 
         # initialize node
-        rospy.init_node('NODE_NAME', anonymous=True)
+        rospy.init_node(NODE_NAME, anonymous=True)
 
         # initialize services
 	self.set_command_lifetime_client = rospy.ServiceProxy('/hebiros/' + \
-                GROUP_NAME + 'set_command_lifetime', SetCommandLifetimeSrv)
+                GROUP_NAME + '/set_command_lifetime', SetCommandLifetimeSrv)
         self.entry_list_client = rospy.ServiceProxy('/hebiros/entry_list', EntryListSrv)
         self.add_group_client = rospy.ServiceProxy(\
                 '/hebiros/add_group_from_names', AddGroupFromNamesSrv)
-        self.size_client = rospy.ServiceProxy('/hebiros/size', SizeSrv)
+        self.size_client = rospy.ServiceProxy('/hebiros/'+GROUP_NAME+'/size', SizeSrv)
 
         # Initialize subscribers
         rospy.Subscriber('/hebiros/' + GROUP_NAME + \
@@ -71,11 +72,12 @@ class TeleopNode(object):
         self.trajectory_client.wait_for_server()
 
 
+        while(not self.recievedFirstHebiFb):
+            pass
+
+        self.step()
+        rospy.spin()
         # spin
-        rate = rospy.Rate(200) # 10hz
-        while not rospy.is_shutdown():
-            self.step()
-            rate.sleep()
 
 
 
@@ -83,36 +85,54 @@ class TeleopNode(object):
         waypoint = WaypointMsg();
         goal = TrajectoryGoal();
 
-        # Create waypoints
-        num_waypoints = 4;
-        times = [0, 2, 4, 8]
-        names = [NAME_1,NAME_2,NAME_3,NAME_4]
+        times = [0, 2.5, 5, 10, 15]
+        names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
+                FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
-        positions = [ [hebi_fb[0], 0, 0, 0],
-                      [hebi_fb[1], 0, 0, 0],
-                      [hebi_fb[2], 0, 0, 0],
-                      [hebi_fb[3], 0, 0, 0] ]
+
+        # Create waypoints
+        num_waypoints = 5;
+        goal.waypoints = [WaypointMsg(),
+                WaypointMsg(),
+                WaypointMsg(),
+                WaypointMsg(),
+                WaypointMsg()]
+        goal.times = times
+
+        #positions = [ [self.hebi_fb.position[0],self.hebi_fb.position[0],self.hebi_fb.position[0],self.hebi_fb.position[0]],
+        positions = [ self.hebi_fb.position,
+                      [np.pi/2,self.hebi_fb.position[1],self.hebi_fb.position[2],self.hebi_fb.position[3]],
+                      [np.pi/2,np.pi/2,-np.pi/2,-2*np.pi],
+                      [np.pi/2,np.pi/2,np.pi/2,2*np.pi],
+                      [0,0,0,0] ]
+
         velocities = [ [0, NaN, NaN, 0],
+                       [0, NaN, NaN, 0],
                        [0, NaN, NaN, 0],
                        [0, NaN, NaN, 0],
                        [0, NaN, NaN, 0] ]
         accelerations = [ [0, NaN, NaN, 0],
                           [0, NaN, NaN, 0],
                           [0, NaN, NaN, 0],
+                          [0, NaN, NaN, 0],
                           [0, NaN, NaN, 0] ]
 
         # Reshape waypoint into a TrajectoryGoal
         for i in range(0,num_waypoints):
-            for j in range(num_joints):
-                waypoint.names[j] = names[j]
-                waypoint.positions[j] = positions[i,j]
-                waypoint.velocities[j] = velocities[i,j]
-                waypoint.accelerations[j] = accelerations[i,j]
-            goal.waypoints[i] = waypoint
-        goal.times = times
+            goal.waypoints[i].names = names;
+            goal.waypoints[i].positions = [0,0,0,0];
+            goal.waypoints[i].velocities = [0,0,0,0];
+            goal.waypoints[i].accelerations = [0,0,0,0];
+            for j in range(GROUP_SIZE):
+                goal.waypoints[i].names[j] = names[j]
+                goal.waypoints[i].positions[j] = positions[i][j]
+                goal.waypoints[i].velocities[j] = velocities[i][j]
+                goal.waypoints[i].accelerations[j] = accelerations[i][j]
+
+        rospy.loginfo(goal)
 
         # Send goal to action server
-        self.trajectory_action.send_goal(goal,\
+        self.trajectory_client.send_goal(goal,\
                 self.trajectory_done_cb,\
                 self.trajectory_active_cb,
                 self.trajectory_feedback_cb)
@@ -121,16 +141,19 @@ class TeleopNode(object):
         rospy.loginfo("Action is now active")
 
     def trajectory_feedback_cb(self, msg):
-        pass
-
-    def trajectory_done_cb(self,msg):
-        rospy.loginfo("Action is now done")
+        rospy.loginfo("Trajectory fb")
         rospy.loginfo(msg)
+
+    def trajectory_done_cb(self,state,result):
+        rospy.loginfo("Action is now done")
+        rospy.loginfo(state)
+        rospy.loginfo(result)
 
 
     # Call back for each time joint state feedback is updated
     def hebi_fb_cb(self, msg):
         self.hebi_fb = msg
+        # rospy.loginfo(msg)
         if not self.recievedFirstHebiFb:
             self.recievedFirstHebiFb = True
 
@@ -143,7 +166,7 @@ class TeleopNode(object):
         # Construct a group
         group_name = GROUP_NAME
         names = [NAME_1,NAME_2,NAME_3,NAME_4]
-        families = [FAMILY_NAME]
+        families = [FAMILY_NAME,FAMILY_NAME,FAMILY_NAME,FAMILY_NAME]
 
         # Call the add_group_from_urdf service to create a group until it succeeds
         # Specific topics and services will now be available under this group's namespace
@@ -152,7 +175,7 @@ class TeleopNode(object):
         rospy.loginfo(add_resp)
 
 	# Set command lifetime
-	command_lifetime_resp = self.set_command_lifetime_client.call(0);
+	command_lifetime_resp = self.set_command_lifetime_client.call(COMMAND_LIFETIME);
 	rospy.loginfo(command_lifetime_resp)
 
         # Call the size service for the newly created group
