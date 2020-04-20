@@ -1,5 +1,5 @@
 
 <launch>
   <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
-  <node pkg="localization" type="subscriber.py" name="vision" output="screen"/>
+<!--  <node pkg="localization" type="subscriber.py" name="vision" output="screen"/>-->
 </launch>
