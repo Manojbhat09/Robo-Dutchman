@@ -27,6 +27,7 @@ class ParticleFilter(object):
         self.sensor_max = sensor_max
         self.sensor_std_error = sensor_std_error
         self.wall_lengths = wall_lengths
+        self.iterations = 0
 
         # initialize particles and weights
         if initial_x is not None:
@@ -62,7 +63,7 @@ class ParticleFilter(object):
         N = len(self.particles)
 
         # update heading
-        self.particles[:, 2] += u[0] + (randn(N) * std[0])
+        self.particles[:, 2] += u[0] * dt + (randn(N) * std[0])
         self.particles[:, 2] = np.arctan2(np.sin(self.particles[:, 2]), np.cos(self.particles[:, 2]))
 
         # move in the (noisy) commanded direction
@@ -85,6 +86,12 @@ class ParticleFilter(object):
 
         self.weights += 1.e-300      # avoid round-off to zero
         self.weights /= sum(self.weights) # normalize
+
+    def update_new(self, z):
+        for i, sensor_loc in enumerate(self.sensor_locations):
+            # find estimated distance from sensors
+            dists = self.find_sensor_dists(sensor_loc)
+        pass
 
     def estimate(self):
         """returns mean and variance of the weighted particles"""
@@ -120,7 +127,7 @@ class ParticleFilter(object):
     def neff(self):
         return 1. / np.sum(np.square(self.weights))  
 
-    def update_step(self, z, u, u_std=[.1,.05], plot_points=False):
+    def update_step(self, z, u, u_std=[.1,.05], plot_points=False, dt=0.1):
         N = len(self.particles)
 
         # predict step
@@ -131,8 +138,8 @@ class ParticleFilter(object):
         
         # resample if too few effective particles
         if self.neff() < N/2:
-            self.resample_simple()
-            # self.resample_syst()
+            # self.resample_simple()
+            self.resample_syst()
 
         # estimate mean and variance
         est = self.estimate()
@@ -144,6 +151,9 @@ class ParticleFilter(object):
                             color='k', marker=',', s=1)
 
         plt.scatter(best_est[0], best_est[1], marker='s', color='r')
+
+        self.iterations = self.iterations + 1
+
         return best_est
 
     # returns scalar projection of vec1 onto vec2
@@ -164,11 +174,12 @@ class ParticleFilter(object):
         th = pos[2]
         
         # find split, min, and max angles
-        L1 = self.wall_lengths[0]
-        L2 = self.wall_lengths[1]
-        split_ang = np.arctan2(-y,-x)
-        max_ang = np.arctan2(L1-y,-x)
-        min_ang = np.arctan2(-y,-L2-x)
+        # L1 = self.wall_lengths[0]
+        # L2 = self.wall_lengths[1]
+
+        # split_ang = np.arctan2(-y,-x)
+        # max_ang = np.arctan2(L1-y,-x)
+        # min_ang = np.arctan2(-y,-L2-x)
         
         # initialize rotation matrix
         R = np.array([[np.cos(th), -np.sin(th)],
@@ -178,18 +189,35 @@ class ParticleFilter(object):
         sensor_loc = R.dot(np.array(sensor_loc))
 
         # determine measured distance
-        dist = None           
-        sensor_ang = np.arctan2(sensor_loc[1], sensor_loc[0])
-        if (sensor_ang <= min_ang or sensor_ang >= max_ang):
-            dist = error_val
-        elif (sensor_ang > split_ang):
-            cos_ang = self.vector_angle(sensor_loc, np.array([x,0]))
-            dist = x / cos_ang
-        else:
-            cos_ang = self.vector_angle(sensor_loc, np.array([0, -y]))
-            dist = y / cos_ang
+        
+        # dist = None
+        # sensor_ang = np.arctan2(sensor_loc[1], sensor_loc[0])
+        # if (sensor_ang <= min_ang or sensor_ang >= max_ang):
+        #     dist = error_val
+        # elif (sensor_ang > split_ang):
+        #     cos_ang = self.vector_angle(sensor_loc, np.array([-x, 0]))
+        #     dist = abs(x / cos_ang)
+        # else:
+        #     cos_ang = self.vector_angle(sensor_loc, np.array([0, -y]))
+        #     dist = abs(y / cos_ang)
+
+        wall1_dist = abs(x / self.vector_angle(sensor_loc, np.array([-x, 0])))
+        wall2_dist = abs(y / self.vector_angle(sensor_loc, np.array([0, -y])))
+        dist = np.min([wall1_dist, wall2_dist])
 
         return dist
+    
+    def find_sensor_dists(self, sensor_loc):
+        # make rotation matrix
+        cos_arr = np.cos(self.particles[:,2])
+        sin_arr = np.sin(self.particles[:,2])
+
+        r_arr = np.array([[cos_arr, sin_arr], [-sin_arr, cos_arr]]).T
+
+        # rotate sensor
+        sensor_rot = np.einsum('ijk,ko', r_arr, self.sensor_locations)
+
+        pass
 
 if __name__ == '__main__':
     global error
@@ -199,7 +227,7 @@ if __name__ == '__main__':
 
     N = 100
     wall_lengths = [1.524, 0.9144]
-    sensor_locations = ([0,1], [1,0], [0,-1])
+    sensor_locations = np.array([[0,1], [1,0], [0,-1]])
     sensor_max = [50, 50, 50]
     sensor_readings = [error_val, 0.5, 0.6]
     initial_x = None
