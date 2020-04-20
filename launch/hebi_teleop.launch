@@ -2,7 +2,7 @@
 <launch>
   <node pkg="joy" type="joy_node" name="joystick">
     <rosparam>
-      dev: /dev/input/js1
+      dev: /dev/input/js0
     </rosparam>
   </node>
 

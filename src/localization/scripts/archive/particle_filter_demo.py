@@ -61,12 +61,11 @@ class DemoWindow(QtWidgets.QMainWindow):
         self.est_plot = self.graphWidget.plot([], [], pen=pen1, symbol='o', symbolSize=10, symbolBrush=('b'))
 
     def timer_callback(self):
-        u_std = [0.1, 0.05]
+        u_std = [0.05, 0.1]
         self.est_state = self.filter.update_step(self.sensor_readings, self.u, u_std=u_std)
-        u_std = [0, 0]
 
     def callback(self, data):
-        self.u = [data.linear.x, data.angular.z]
+        self.u = [data.angular.z, data.linear.x]
         self.update_state()
         self.plot_state()
         self.find_sensor_vals()
@@ -79,7 +78,7 @@ class DemoWindow(QtWidgets.QMainWindow):
 
         self.sensor_readings = dists
 
-        rospy.loginfo(dists)
+        # rospy.loginfo(dists)
 
     def plot_state(self):
         r = 0.1
@@ -94,8 +93,8 @@ class DemoWindow(QtWidgets.QMainWindow):
 
     # update state w/ runge-kutta dead reckoning
     def update_state(self):
-        v = self.u[0]
-        w = self.u[1]
+        v = self.u[1]
+        w = self.u[0]
         
         x = self.state[0]
         y = self.state[1]
