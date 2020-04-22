@@ -1,0 +1,8 @@
+
+<launch>
+  <node pkg="hebiros" type="hebiros_node" name="hebi"/>
+
+  <node pkg="localization" type="base_localizer.py" name="base_localizer" output="screen"/>
+
+  <node pkg="planning" type="base_planner.py" name="base_planer" output="screen"/>
+</launch>

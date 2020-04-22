@@ -27,7 +27,8 @@ class BasePlanner(object):
 
         self.state = [0, 0, 0]
         self.target = [0, 0, 0]
-        self.L = 0.2286 # 9in = 0.2286m
+        self.L = 0.4064 # 16in = 0.4064m
+        self.R = 0.0635 # 2.5in = 0.0635m
 
         # initialize node
         rospy.init_node('base_planner', anonymous=True)
@@ -75,17 +76,17 @@ class BasePlanner(object):
         point_ang = np.arctan2(self.target[1] - self.state[1], self.target[0] - self.state[0])
         ang = point_ang - self.state[2]
         rospy.loginfo("rotate %f radians\n" %(ang))
-        self.rotate(ang, 0.05)
+        self.rotate(ang, 0.0005)
 
         # move in straight line
         dist = np.sqrt((self.state[1] - self.target[1])**2 + (self.state[0] - self.target[0])**2)
         rospy.loginfo("move straight %f m\n" %(dist))
-        self.move_straight(dist, 0.05)
+        self.move_straight(dist, 0.0005)
         
         # do post-rotation
         ang = self.target[2] - self.state[2]
         rospy.loginfo("rotate %f radians\n" %(ang))
-        self.rotate(ang, 0.05)
+        self.rotate(ang, 0.0005)
 
         # send done message
         self.done_pub.publish(True)
@@ -173,7 +174,7 @@ class BasePlanner(object):
         
         hebi_cmd = JointState()
         hebi_cmd.name = self.hebi_paths
-        hebi_cmd.velocity = [vl, vr]
+        hebi_cmd.velocity = [vl/self.R, -vr/self.R]
         
         self.hebi_cmd_pub.publish(hebi_cmd)
 
