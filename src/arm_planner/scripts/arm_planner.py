@@ -17,6 +17,7 @@ import actionlib
 import numpy as np
 
 from trajectory_generator import TrajectoryGenerator
+import kinematics as kin
 
 from hebiros.srv import EntryListSrv, AddGroupFromNamesSrv, SizeSrv, SetCommandLifetimeSrv
 from hebiros.msg import WaypointMsg, TrajectoryAction, TrajectoryGoal
@@ -88,7 +89,7 @@ class TeleopNode(object):
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
-        cur_pos = fk(self.hebi_fb.positions)
+        cur_pos = kin.fk(self.hebi_fb.position)
 
         waypoints = [[cur_pos[0],0.5, 0.5], \
                      [cur_pos[1],0,0.2], \
@@ -99,7 +100,8 @@ class TeleopNode(object):
         elbow_up = [1,1,1]
 
         t = TrajectoryGenerator(names,times,waypoints,elbow_up)
-        goal = t.generateTrajectory()
+        goal = t.createTrajectory()
+
         rospy.loginfo(goal)
 
         # Send goal to action server
