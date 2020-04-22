@@ -96,7 +96,7 @@ class TeleopNode(object):
                      [cur_pos[1],   0,      0.32,   0.32,   0.32,   0.32,   0.32,   0], \
                      [cur_pos[2],   0,      0,      0,      0,      0,      0,      0], \
                      [cur_pos[3],   -PI/2,  -PI/2,  0,      0,      0,      0,      -PI/2], \
-                     [cur_pos[4],   0,      0,      0,      0,      2*PI,   2*PI,   0]]
+                     [cur_pos[4],   0,      0,      0,      0,      PI/2,   PI/2,   0]]
 
         num_wayp = len(waypoints[0])
         times = list()
