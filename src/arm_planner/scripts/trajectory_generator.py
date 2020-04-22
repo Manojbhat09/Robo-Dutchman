@@ -40,7 +40,7 @@ NAME_3 = "Wrist1"
 NAME_4 = "Wrist2"
 
 COMMAND_LIFETIME = 0
-WAYPOINT_PERIOD = 0.01
+WAYPOINT_PERIOD = 0.1
 
 class TrajectoryGenerator(object):
     global NODE_NAME, NaN
@@ -60,24 +60,24 @@ class TrajectoryGenerator(object):
         self.num_workspace_dof = len(waypoints)
 
         if (not self.num_waypoints == len(waypoints[0])):
-            print "num waypoints mismatch" + self.num_waypoints + "|" \
-                    + len(waypoints[0])
+            rospy.logwarn("num waypoints mismatch" + self.num_waypoints + "|" \
+                    + len(waypoints[0]))
             return
 
         if (self.num_waypoints < 2):
-            print "invalid num waypoints"
+            rospy.logwarn("invalid num waypoints")
             return
 
         if (not self.num_joints == 4):
-            print "number of joints isnt 4"
+            rospy.logwarn("number of joints isnt 4")
             return
 
         if (not len(waypoints) == 5):
-            print "invalid num workspace targets"
+            rospy.logwarn("invalid num workspace targets")
             return
 
         if (not len(elbow_up) == self.num_waypoints):
-            print "invalid length of elbow up"
+            rospy.logwarn("invalid length of elbow up")
             return
 
 

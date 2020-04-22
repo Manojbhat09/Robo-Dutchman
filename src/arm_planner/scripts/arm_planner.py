@@ -26,11 +26,12 @@ import hebiros.msg
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 
-global NODE_NAME, NaN
+global NODE_NAME, NaN, PI
 global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 
 NODE_NAME = "arm_planner_node"
 NaN = float("NaN")
+PI = np.pi
 
 # Hebi names
 GROUP_NAME = "RoboDutchmanArm"
@@ -45,7 +46,7 @@ COMMAND_LIFETIME = 0
 
 class TeleopNode(object):
     def __init__(self):
-        global NODE_NAME, NaN
+        global NODE_NAME, NaN, PI
         global GROUP_NAME, GROUP_SIZE, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 
         self.hebi_fb = None
@@ -85,19 +86,26 @@ class TeleopNode(object):
 
 
     def step(self):
-        times = [0,2,4]
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
+        elbow = kin.get_elbow(self.hebi_fb.position)
         cur_pos = kin.fk(self.hebi_fb.position)
 
-        waypoints = [[cur_pos[0],0.5, 0.5], \
-                     [cur_pos[1],0,0.2], \
-                     [cur_pos[2],0,0], \
-                     [cur_pos[3],0,0],
-                     [cur_pos[4],-1,1]]
+        waypoints = [[cur_pos[0],   0.3,    0.3,    0.3,    0.6,    0.6,    0.3,    0.3], \
+                     [cur_pos[1],   0,      0.32,   0.32,   0.32,   0.32,   0.32,   0], \
+                     [cur_pos[2],   0,      0,      0,      0,      0,      0,      0], \
+                     [cur_pos[3],   -PI/2,  -PI/2,  0,      0,      0,      0,      -PI/2], \
+                     [cur_pos[4],   0,      0,      0,      0,      2*PI,   2*PI,   0]]
 
-        elbow_up = [1,1,1]
+        num_wayp = len(waypoints[0])
+        times = list()
+        cur_time = 0;
+        elbow_up = list()
+        for i in range(0,num_wayp):
+            elbow_up.append(elbow)
+            times.append(cur_time)
+            cur_time += 2
 
         t = TrajectoryGenerator(names,times,waypoints,elbow_up)
         goal = t.createTrajectory()
@@ -129,6 +137,8 @@ class TeleopNode(object):
         # rospy.loginfo(msg)
         if not self.recievedFirstHebiFb:
             self.recievedFirstHebiFb = True
+            rospy.loginfo("Initial hebi_gb")
+            rospy.loginfo(msg)
 
     def hebi_lookup(self):
         # Call the entry_list service, displaying each module on the network
