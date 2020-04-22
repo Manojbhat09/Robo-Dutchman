@@ -17,6 +17,8 @@ FAMILY_NAME = "RoboDutchman"
 NAME_1 = "LeftWheel"
 NAME_2 = "RightWheel"
 
+COMMAND_LIFETIME = 0
+
 class BaseLocalizer(object):
     def __init__(self):
         # HEBI attributes
@@ -27,7 +29,7 @@ class BaseLocalizer(object):
 
         # Localizer attributes
         self.wheel_radius = 0.0635 # 2.5in = 0.0635m
-        self.wheel_separation = 0.2286 # 9in = 0.2286m
+        self.wheel_separation = 0.4064 # 16in = 0.4064m
         self.state = [0, 0, 0] # [x, y, th]
         self.ang_quat = [0, 0, 0, 0]
         self.prev_pos = 0
@@ -35,7 +37,7 @@ class BaseLocalizer(object):
         rospy.init_node('base_localizer', anonymous=True)
 
         # initialize services
-	    self.set_command_lifetime_client = rospy.ServiceProxy('/hebiros/' + 
+        self.set_command_lifetime_client = rospy.ServiceProxy('/hebiros/' +
             GROUP_NAME + '/set_command_lifetime', SetCommandLifetimeSrv)
         self.entry_list_client = rospy.ServiceProxy('/hebiros/entry_list', EntryListSrv)
         self.add_group_client = rospy.ServiceProxy(
@@ -89,15 +91,17 @@ class BaseLocalizer(object):
 
             broadcaster.sendTransform(tf_msg)
 
-            pose_pub.publish(new_msg)
             rate.sleep()            
 
     ## ROS CALLBACK FUNCTIONS
 
     def hebi_fb_cb(self, msg):
         # Get position
-        pos = msg.position
-        pos[1] = pos[1] * -1
+        pos = [0, 0]
+        pos[0] = msg.position[0]
+        pos[1] = -1 * msg.position[1]
+#        pos = msg.position
+#        pos[1] = pos[1] * -1
         
         # Set received_fb flag and prev_pos on first callback
         if not self.receieved_fb:
@@ -106,7 +110,7 @@ class BaseLocalizer(object):
             return
 
         # Perform state estimation update
-        self.state_update(pos)
+        self.runge_kutta_update(pos)
         self.prev_pos = pos
 
     ## HELPER FUNCTIONS
@@ -161,7 +165,7 @@ class BaseLocalizer(object):
 
         # Call the size service for the newly created group
         size_resp = self.size_client.call()
-        rospy.loginfo("%s has been created and has size %d" %(group_name, size_resp.size))
+        rospy.loginfo("%s has been created and has size %d" %(GROUP_NAME, size_resp.size))
 
 if __name__ == '__main__':
     try:
