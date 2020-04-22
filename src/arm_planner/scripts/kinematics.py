@@ -4,9 +4,9 @@ import math
 import numpy as np
 
 # All units in meters
-L1 = 1;
-L2 = 1;
-L3 = 0.2;
+L1 = 0.381;
+L2 = 0.3302;
+L3 = 0.130175;
 
 z_offset = 0.06668;
 
@@ -30,7 +30,7 @@ def ik(work, elbow_up = False):
 
     # Elbow
     config[1] = math.acos( \
-            ( wrist_center_x**2 + wrist_center_y**2 - L1**2 - L2**2 ) \
+            ( (wrist_center_x**2) + (wrist_center_y**2) - L1**2 - L2**2 ) \
             / (2 * L1 * L2))
 
     # Shoulder
@@ -38,8 +38,8 @@ def ik(work, elbow_up = False):
             - math.atan2( L2 * math.sin(config[1]), \
             (L1 + L2 * math.cos(config[1])))
 
-    # Chage elbow up or down
-    if ( (elbow_up and config[1] < 0) or (not(elbow_up) and config[1] > 0)):
+    # Change elbow up or down
+    if (elbow_up == get_elbow(config)):
             angle_to_wrist_center = math.atan2(wrist_center_y,wrist_center_x)
             diff_wrist_angle_to_shoulder = angle_to_wrist_center - config[0]
             config[0] += 2 * diff_wrist_angle_to_shoulder
@@ -61,6 +61,10 @@ def ik(work, elbow_up = False):
 
     return config
 
+def get_elbow(config):
+    if (config[1] > 0):
+        return 1
+    return 0
 # =============================================================================
 # FORWARD KINEMATICS
 # =============================================================================
@@ -71,6 +75,7 @@ def ik(work, elbow_up = False):
 # Its elements are the shoulder, elbow, wrist1, wrist2, respectively
 # The output is a 1d vector of length 5
 # Its elements are [x y z theta1 wrist2]
+
 
 def fk(config):
     dhps = np.zeros((5,4), dtype = float)
@@ -130,10 +135,5 @@ def make_dh_transform(dhp):
     transform[3,3] = 1
 
     return transform
-
-
-
-
-
 
 

@@ -16,6 +16,9 @@ import rospy
 import actionlib
 import numpy as np
 
+from trajectory_generator import TrajectoryGenerator
+import kinematics as kin
+
 from hebiros.srv import EntryListSrv, AddGroupFromNamesSrv, SizeSrv, SetCommandLifetimeSrv
 from hebiros.msg import WaypointMsg, TrajectoryAction, TrajectoryGoal
 
@@ -23,11 +26,12 @@ import hebiros.msg
 from sensor_msgs.msg import JointState
 from std_msgs.msg import String
 
-global NODE_NAME, NaN
+global NODE_NAME, NaN, PI
 global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 
 NODE_NAME = "arm_planner_node"
 NaN = float("NaN")
+PI = np.pi
 
 # Hebi names
 GROUP_NAME = "RoboDutchmanArm"
@@ -42,7 +46,7 @@ COMMAND_LIFETIME = 0
 
 class TeleopNode(object):
     def __init__(self):
-        global NODE_NAME, NaN
+        global NODE_NAME, NaN, PI
         global GROUP_NAME, GROUP_SIZE, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 
         self.hebi_fb = None
@@ -82,52 +86,29 @@ class TeleopNode(object):
 
 
     def step(self):
-        waypoint = WaypointMsg();
-        goal = TrajectoryGoal();
-
-        times = [0, 2.5, 5, 10, 15]
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
+        elbow = kin.get_elbow(self.hebi_fb.position)
+        cur_pos = kin.fk(self.hebi_fb.position)
 
-        # Create waypoints
-        num_waypoints = 5;
-        goal.waypoints = [WaypointMsg(),
-                WaypointMsg(),
-                WaypointMsg(),
-                WaypointMsg(),
-                WaypointMsg()]
-        goal.times = times
+        waypoints = [[cur_pos[0],   0.3,    0.3,    0.3,    0.6,    0.6,    0.3,    0.3], \
+                     [cur_pos[1],   0,      0.32,   0.32,   0.32,   0.32,   0.32,   0], \
+                     [cur_pos[2],   0,      0,      0,      0,      0,      0,      0], \
+                     [cur_pos[3],   -PI/2,  -PI/2,  0,      0,      0,      0,      -PI/2], \
+                     [cur_pos[4],   0,      0,      0,      0,      2*PI,   2*PI,   0]]
 
-        #positions = [ [self.hebi_fb.position[0],self.hebi_fb.position[0],self.hebi_fb.position[0],self.hebi_fb.position[0]],
-        positions = [ self.hebi_fb.position,
-                      [np.pi/2,self.hebi_fb.position[1],self.hebi_fb.position[2],self.hebi_fb.position[3]],
-                      [np.pi/2,np.pi/2,-np.pi/2,-2*np.pi],
-                      [np.pi/2,np.pi/2,np.pi/2,2*np.pi],
-                      [0,0,0,0] ]
+        num_wayp = len(waypoints[0])
+        times = list()
+        cur_time = 0;
+        elbow_up = list()
+        for i in range(0,num_wayp):
+            elbow_up.append(elbow)
+            times.append(cur_time)
+            cur_time += 2
 
-        velocities = [ [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0] ]
-        accelerations = [ [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0] ]
-
-        # Reshape waypoint into a TrajectoryGoal
-        for i in range(0,num_waypoints):
-            goal.waypoints[i].names = names;
-            goal.waypoints[i].positions = [0,0,0,0];
-            goal.waypoints[i].velocities = [0,0,0,0];
-            goal.waypoints[i].accelerations = [0,0,0,0];
-            for j in range(GROUP_SIZE):
-                goal.waypoints[i].names[j] = names[j]
-                goal.waypoints[i].positions[j] = positions[i][j]
-                goal.waypoints[i].velocities[j] = velocities[i][j]
-                goal.waypoints[i].accelerations[j] = accelerations[i][j]
+        t = TrajectoryGenerator(names,times,waypoints,elbow_up)
+        goal = t.createTrajectory()
 
         rospy.loginfo(goal)
 
@@ -156,6 +137,8 @@ class TeleopNode(object):
         # rospy.loginfo(msg)
         if not self.recievedFirstHebiFb:
             self.recievedFirstHebiFb = True
+            rospy.loginfo("Initial hebi_gb")
+            rospy.loginfo(msg)
 
     def hebi_lookup(self):
         # Call the entry_list service, displaying each module on the network
