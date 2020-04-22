@@ -1,7 +1,6 @@
 <launch>
     <include file="$(find config)/launch/config.launch"/>
     <include file="$(find config)/launch/odom.launch"/>
-    <include file="$(find config)/launch/gmapping.launch"/>
     <include file="$(find config)/launch/sensors.launch"/>
     <include file="$(find config)/launch/teleop_wheels.launch"/>
 </launch>
