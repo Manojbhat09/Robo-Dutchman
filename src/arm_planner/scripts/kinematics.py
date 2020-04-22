@@ -4,9 +4,9 @@ import math
 import numpy as np
 
 # All units in meters
-L1 = 1;
-L2 = 1;
-L3 = 0.2;
+L1 = 0.381;
+L2 = 0.3302;
+L3 = 0.130175;
 
 z_offset = 0.06668;
 
@@ -30,7 +30,7 @@ def ik(work, elbow_up = False):
 
     # Elbow
     config[1] = math.acos( \
-            ( wrist_center_x**2 + wrist_center_y**2 - L1**2 - L2**2 ) \
+            ( (wrist_center_x**2) + (wrist_center_y**2) - L1**2 - L2**2 ) \
             / (2 * L1 * L2))
 
     # Shoulder

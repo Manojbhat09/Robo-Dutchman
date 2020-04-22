@@ -16,6 +16,8 @@ import rospy
 import actionlib
 import numpy as np
 
+from trajectory_generator import TrajectoryGenerator
+
 from hebiros.srv import EntryListSrv, AddGroupFromNamesSrv, SizeSrv, SetCommandLifetimeSrv
 from hebiros.msg import WaypointMsg, TrajectoryAction, TrajectoryGoal
 
@@ -82,53 +84,22 @@ class TeleopNode(object):
 
 
     def step(self):
-        waypoint = WaypointMsg();
-        goal = TrajectoryGoal();
-
-        times = [0, 2.5, 5, 10, 15]
+        times = [0,2,4]
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
+        cur_pos = fk(self.hebi_fb.positions)
 
-        # Create waypoints
-        num_waypoints = 5;
-        goal.waypoints = [WaypointMsg(),
-                WaypointMsg(),
-                WaypointMsg(),
-                WaypointMsg(),
-                WaypointMsg()]
-        goal.times = times
+        waypoints = [[cur_pos[0],0.5, 0.5], \
+                     [cur_pos[1],0,0.2], \
+                     [cur_pos[2],0,0], \
+                     [cur_pos[3],0,0],
+                     [cur_pos[4],-1,1]]
 
-        #positions = [ [self.hebi_fb.position[0],self.hebi_fb.position[0],self.hebi_fb.position[0],self.hebi_fb.position[0]],
-        positions = [ self.hebi_fb.position,
-                      [np.pi/2,self.hebi_fb.position[1],self.hebi_fb.position[2],self.hebi_fb.position[3]],
-                      [np.pi/2,np.pi/2,-np.pi/2,-2*np.pi],
-                      [np.pi/2,np.pi/2,np.pi/2,2*np.pi],
-                      [0,0,0,0] ]
+        elbow_up = [1,1,1]
 
-        velocities = [ [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0],
-                       [0, NaN, NaN, 0] ]
-        accelerations = [ [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0],
-                          [0, NaN, NaN, 0] ]
-
-        # Reshape waypoint into a TrajectoryGoal
-        for i in range(0,num_waypoints):
-            goal.waypoints[i].names = names;
-            goal.waypoints[i].positions = [0,0,0,0];
-            goal.waypoints[i].velocities = [0,0,0,0];
-            goal.waypoints[i].accelerations = [0,0,0,0];
-            for j in range(GROUP_SIZE):
-                goal.waypoints[i].names[j] = names[j]
-                goal.waypoints[i].positions[j] = positions[i][j]
-                goal.waypoints[i].velocities[j] = velocities[i][j]
-                goal.waypoints[i].accelerations[j] = accelerations[i][j]
-
+        t = TrajectoryGenerator(names,times,waypoints,elbow_up)
+        goal = t.generateTrajectory()
         rospy.loginfo(goal)
 
         # Send goal to action server
