@@ -8,8 +8,8 @@ import numpy as np
 
 from pure_pursuit import PurePursuit
 from std_msgs.msg import Bool
-from geometry_msgs.msg import Pose
-from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Twist, Pose
+from nav_msgs.msg import Odometry
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
@@ -24,8 +24,8 @@ class BasePlanner(object):
         # Planner attributes
         self.ang_vel_max = rospy.get_param('~ang_vel_max', 2.5)
         self.ang_acc = rospy.get_param('~ang_acc', 2)
-        self.lin_vel_max = rospy.get_param('~lin_vel_max', 0.4)
-        self.lin_acc = rospy.get_param('~lin_acc', 0.4)
+        self.lin_vel_max = rospy.get_param('~lin_vel_max', 0.2)
+        self.lin_acc = rospy.get_param('~lin_acc', 0.2)
 
         self.state = [0, 0, 0]
         self.target = [0, 0, 0]
@@ -37,11 +37,11 @@ class BasePlanner(object):
         rospy.init_node('base_planner', anonymous=True)
 
         # initialize ROS publishers and subscribers
-        rospy.Subscriber('base/pose', Pose, self.pose_callback)
+        rospy.Subscriber('odom', Odometry, self.pose_callback)
         rospy.Subscriber('base/target_pose', Pose, self.target_pose_callback)
         self.done_pub = rospy.Publisher('base/done', Bool, queue_size=10)
-        self.hebi_cmd_pub = rospy.Publisher('/hebiros/' + self.group_name + '/command/joint_state', JointState, queue_size=10)
-
+        self.cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        
         # initialize tf listener
         self.listener = tf.TransformListener()
 
@@ -52,21 +52,21 @@ class BasePlanner(object):
 
     def pose_callback(self, msg):
         # extract state information
-        self.state[0] = msg.position.x
-        self.state[1] = msg.position.y
+        self.state[0] = msg.pose.pose.position.x
+        self.state[1] = msg.pose.pose.position.y
 
         quat = [0, 0, 0, 0]
-        quat[0] = msg.orientation.x
-        quat[1] = msg.orientation.y
-        quat[2] = msg.orientation.z
-        quat[3] = msg.orientation.w
+        quat[0] = msg.pose.pose.orientation.x
+        quat[1] = msg.pose.pose.orientation.y
+        quat[2] = msg.pose.pose.orientation.z
+        quat[3] = msg.pose.pose.orientation.w
 
         (_, _, yaw) = euler_from_quaternion(quat)
         self.state[2] = yaw
 
         # get transform information
         try:
-            (trans,rot) = self.listener.lookupTransform('/odom', '/base_link', rospy.Time(0))
+            (trans,rot) = self.listener.lookupTransform('/odom', '/base_footprint', rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
 
@@ -147,7 +147,7 @@ class BasePlanner(object):
                 w = pp.get_ang_vel(self.state, v)
                 self.send_vels(v, w)
 
-        self.send_vels(0, 0)
+        self.send_vels(0, 0)        
 
     def trapezoidal_trajectory(self, d, max_vel, accel, dt):
         t_ramp = max_vel / accel
@@ -196,14 +196,11 @@ class BasePlanner(object):
                 return 0
 
     def send_vels(self, v, w):
-        vl = (2.0 * v - self.L * w) / 2.0
-        vr = (2.0 * v + self.L * w) / 2.0
-        
-        hebi_cmd = JointState()
-        hebi_cmd.name = self.hebi_paths
-        hebi_cmd.velocity = [vl/self.R, -vr/self.R]
-        
-        self.hebi_cmd_pub.publish(hebi_cmd)
+        cmd_msg = Twist()
+        cmd_msg.linear.x = v
+        cmd_msg.angular.z = w
+
+        self.cmd_vel_pub.publish(cmd_msg)
 
 if __name__ == '__main__':
     try:
