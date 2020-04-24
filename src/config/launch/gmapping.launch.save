@@ -16,17 +16,16 @@
           minimumScore: 250
 
           # Update frequencies
-          linearUpdate: 0.05
+#          # linearUpdate: 0.05
           # angularUpdate: 0.01
-#          temporalUpdate: 0.1
-          # resampleThreshold: 0.5
+          temporalUpdate: 0.1
+#          # resampleThreshold: 0.5
 
           # course parameters (0.005, 0.01, 0.007, 0.01)
           srr: 0.001
           srt: 0.001
           str: 0.001
-          stt: 0.005
-
+          stt: 0.01
           # Initial Map Size
           xmin: -25.0
           ymin: -25.0
@@ -42,7 +41,7 @@
           # iterations: 5
           # lsigma: 0.075
           # ogain: 3.0
-          lskip: 2
+          # lskip: 0
           # llsamplerange: 0.01
           # llsamplestep: 0.01
           # lasamplerange: 0.005

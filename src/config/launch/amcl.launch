@@ -1,7 +1,5 @@
 <launch>
-    <!-- <arg name="map_path" value="course_full_3.yaml"/> -->
-
-    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="/home/robodutchman/Robo-Dutchman/maps/course1.yaml"/>
+    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(find config)/maps/course2.yaml"/>
 
     <node pkg="amcl" type="amcl" name="amcl">
       <rosparam>
@@ -10,7 +8,7 @@
         kld_err: 0.01
         kld_z: 0.99
         update_min_d: 0.05
-        # update_min_a: 0.5236
+        update_min_a: 0.017
         resample_interval: 2
         transform_tolerance: 0.1
         recovery_alpha_slow: 0.0
@@ -39,10 +37,10 @@
         laser_model_type: likelihood_field
 
         odom_model_type: diff-corrected
-        odom_alpha1: 0.004
-        odom_alpha2: 0.004
-        odom_alpha3: 0.005
-        odom_alpha4: 0.007
+        odom_alpha1: 0.5
+        odom_alpha2: 0.2
+        odom_alpha3: 0.1
+        odom_alpha4: 0.1
         odom_alpha5: 0.2
         odom_frame_id: odom
         base_frame_id: base_link
