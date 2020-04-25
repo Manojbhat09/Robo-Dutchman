@@ -62,6 +62,9 @@ class TeleopNode(object):
         global GROUP_NAME, GROUP_SIZE, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
         global ACTION_SERVER_NAME
 
+        # initialize node
+        rospy.init_node(NODE_NAME, anonymous=True)
+
         # Action Server variables used to publish fedback/result
         as_feedback = arm_planner.msg.ArmTrajectoryFeedback()
         as_result = arm_planner.msg.ArmTrajectoryResult()
@@ -75,9 +78,6 @@ class TeleopNode(object):
         # Feedback from hebiros
         self.hebi_fb = None
         self.recievedFirstHebiFb = False
-
-        # initialize node
-        rospy.init_node(NODE_NAME, anonymous=True)
 
         # initialize services
 

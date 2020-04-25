@@ -49,17 +49,31 @@ class TrajectoryGenerator(object):
     # times: time stamps of wapyoints of length m
     # names: names of joints
     # waypoints: a 5 x m matrix of waypoints
-    def __init__(self, names, times, waypoints, elbow_up):
+    def __init__(self, names):
         # input validation
-        self.times = times
         self.names = names
-        self.waypoints = waypoints
-        self.elbow_up = elbow_up
-        self.num_waypoints = len(times)
-        self.num_joints = len(names)
-        self.num_workspace_dof = len(waypoints)
+        self.times = list([0])
+        self.waypoints = [ [0], [0], [0], [0], [0] ]
+        self.elbow_up = list([0])
 
-        if (not self.num_waypoints == len(waypoints[0])):
+
+    def addWaypoint(self, waypoint, duration, elbow_up):
+        if (not len(waypoint) == 5):
+            rospy.logwarn("Need 5 values for waypoint")
+
+        self.times.append(duration)
+
+        for i in range(0,5):
+            self.waypoints[i].append(waypoint[i])
+
+        self.elbow_up.append(elbow_up)
+
+    def validate(self):
+        self.num_waypoints = len(self.times)
+        self.num_joints = len(self.names)
+        self.num_workspace_dof = len(self.waypoints)
+
+        if (not self.num_waypoints == len(self.waypoints[0])):
             rospy.logwarn("num waypoints mismatch" + self.num_waypoints + "|" \
                     + len(waypoints[0]))
             return
@@ -72,16 +86,16 @@ class TrajectoryGenerator(object):
             rospy.logwarn("number of joints isnt 4")
             return
 
-        if (not len(waypoints) == 5):
+        if (not len(self.waypoints) == 5):
             rospy.logwarn("invalid num workspace targets")
             return
 
-        if (not len(elbow_up) == self.num_waypoints):
+        if (not len(self.elbow_up) == self.num_waypoints):
             rospy.logwarn("invalid length of elbow up")
             return
 
 
-        self.interp_times = np.arange(0,times[-1] + WAYPOINT_PERIOD,WAYPOINT_PERIOD)
+        self.interp_times = np.arange(0,self.times[-1] + WAYPOINT_PERIOD,WAYPOINT_PERIOD)
         self.num_interp_waypoints = len(self.interp_times)
 
         # a 5 x num_inter_waypoints matrix
@@ -89,6 +103,7 @@ class TrajectoryGenerator(object):
 
         # a num_interp_waypoints x 5 matrx
         self.configuration_waypoints = list()
+
 
     def interpolateWorkspaceWaypoints(self):
         self.workspace_waypoints = list()
@@ -136,7 +151,20 @@ class TrajectoryGenerator(object):
 
 
 
-    def createTrajectory(self):
+    def set_initial_pos(self,cur_pos):
+
+        self.times[0] = 0
+        self.elbow_up[0] = kin.get_elbow(cur_pos)
+
+        cur_pos_workspace = kin.fk(cur_pos)
+        print cur_pos_workspace
+        for i in range(0,5):
+            self.waypoints[i][0] = cur_pos_workspace[0]
+
+
+    def createTrajectory(self,cur_pos):
+        self.set_initial_pos(cur_pos)
+        self.validate()
         self.interpolateWorkspaceWaypoints()
         self.generateGoal()
         return self.goal
