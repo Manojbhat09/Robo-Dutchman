@@ -1,11 +1,12 @@
 # Goal
-String type
-Float64[] waypoint_1
-Float64[] waypoint_2
-Bool approach_from_above
+string type
+float64[] waypoint_1
+float64[] waypoint_2
+bool approach_from_above
+bool elbow_up
 ---
 # Result
-Float64 end_position
+float64 end_position
 ---
 #Feedback
-Float32 percent_complete
+float32 percent_complete

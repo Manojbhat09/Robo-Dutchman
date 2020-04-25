@@ -1,4 +1,5 @@
 <launch>
+    <node pkg="arm_planner" type="test1.py" name="arm_planner_test_1_node" output="screen"/>
     <node pkg="arm_planner" type="arm_planner.py" name="arm_planner_node" output="screen"/>
     <node pkg="hebiros" type="hebiros_node" name="hebi"/>
 </launch>
