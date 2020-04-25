@@ -1,0 +1,11 @@
+# Goal
+String type
+Float64[] waypoint_1
+Float64[] waypoint_2
+Bool approach_from_above
+---
+# Result
+Float64 end_position
+---
+#Feedback
+Float32 percent_complete
