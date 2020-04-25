@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 import actionlib
 import arm_planner.msg
@@ -9,7 +11,7 @@ global NODE_NAME
 class arm_test_1(object):
     def __init__(self):
 
-        rospy.init_node(NODE_NAME, anonymous=true)
+        rospy.init_node(NODE_NAME, anonymous=True)
 
         self.ArmTrajectoryClient = actionlib.SimpleActionClient(\
                 "arm_planner/ArmTrajectory",
@@ -18,6 +20,10 @@ class arm_test_1(object):
 
         goal = arm_planner.msg.ArmTrajectoryGoal()
         self.ArmTrajectoryClient.send_goal(goal,
+                self.done_cb,
+                self.active_cb,
+                self.result_cb)
+        rospy.spin()
 
     def done_cb(self, state, result):
         rospy.loginfo("APT1: Client is done");
@@ -31,4 +37,8 @@ class arm_test_1(object):
         rospy.loginfo("APT1: feedback");
         rospy.loginfo(msg);
 
-
+if __name__ == '__main__':
+    try:
+        arm_test_1()
+    except rospy.ROSInterruptException:
+        pass

@@ -73,7 +73,7 @@ class TeleopNode(object):
         action_server = actionlib.SimpleActionServer(ACTION_SERVER_NAME, \
                 arm_planner.msg.ArmTrajectoryAction, \
                 execute_cb = self.action_server_cb, \
-                auto_start = false)
+                auto_start = False)
 
         # Feedback from hebiros
         self.hebi_fb = None
