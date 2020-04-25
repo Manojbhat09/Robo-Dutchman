@@ -17,10 +17,10 @@ class BasePlanner(object):
     def __init__(self):
         # HEBI attributes
         self.group_name = 'RoboDutchmanWheels'
-        self.hebi_names = ['LeftWheel', 'RightWheel'] 
+        self.hebi_names = ['LeftWheel', 'RightWheel']
         self.hebi_paths = ['RoboDutchman/LeftWheel', 'RoboDutchman/RightWheel']
         self.receieved_fb = False
-        
+
         # Planner attributes
         self.ang_vel_max = rospy.get_param('~ang_vel_max', 2.5)
         self.ang_acc = rospy.get_param('~ang_acc', 2)
@@ -39,6 +39,7 @@ class BasePlanner(object):
         # initialize ROS publishers and subscribers
         rospy.Subscriber('base/pose', Pose, self.pose_callback)
         rospy.Subscriber('base/target_pose', Pose, self.target_pose_callback)
+        rospy.Subscriber('base/initialize', Bool, self.initialize_callback)
         self.done_pub = rospy.Publisher('base/done', Bool, queue_size=10)
         self.hebi_cmd_pub = rospy.Publisher('/hebiros/' + self.group_name + '/command/joint_state', JointState, queue_size=10)
 
@@ -49,6 +50,9 @@ class BasePlanner(object):
         rospy.spin()
 
     # ROS CALLBACK FUNCTIONS
+
+    def initialize_callback(self, msg):
+        self.done_pub.publish(True)
 
     def pose_callback(self, msg):
         # extract state information
@@ -71,7 +75,7 @@ class BasePlanner(object):
             pass
 
     def target_pose_callback(self, msg):
-        # extract target information        
+        # extract target information
         self.target[0] = msg.position.x
         self.target[1] = msg.position.y
 
@@ -87,26 +91,36 @@ class BasePlanner(object):
         # do pre-rotation
         point_ang = np.arctan2(self.target[1] - self.state[1], self.target[0] - self.state[0])
         ang = point_ang - self.state[2]
-        rospy.loginfo("rotate %f radians\n" %(ang))
+
+        reverse = abs(ang) > np.pi / 2
+
+        if reverse:
+            point_ang += np.pi
+            point_ang = np.arctan2(np.sin(point_ang), np.cos(point_ang))
+            ang = point_ang - self.state[2]
+
+        rospy.loginfo("pre-rotate %f radians" %(ang))
         self.rotate(point_ang)
 
         # move in straight line
         dist = np.sqrt((self.state[1] - self.target[1])**2 + (self.state[0] - self.target[0])**2)
-        rospy.loginfo("move straight %f m\n" %(dist))
-        self.move_straight(self.state[:2], self.target[:2])
-        
+        rospy.loginfo("move straight %f m" %(dist))
+        self.move_straight(self.state[:2], self.target[:2], reverse)
+
         # do post-rotation
         ang = self.target[2] - self.state[2]
-        rospy.loginfo("rotate %f radians\n" %(ang))
+        rospy.loginfo("post-rotate %f radians" %(ang))
         self.rotate(self.target[2])
 
         # send done message
         rospy.loginfo("trajectory done")
+        self.send_vels(0,0)
         self.done_pub.publish(True)
 
     # HELPER FUNCTIONS
 
     def rotate(self, target_ang):
+        print("target: %f" %(target_ang))
         ang_thresh = 0.01
         ang_diff = target_ang - self.state[2]
         k = 2
@@ -115,6 +129,7 @@ class BasePlanner(object):
 
         while abs(ang_diff) > ang_thresh:
             if (time.time() - timer) > self.dt:
+                print("ang diff: %f" %(ang_diff))
                 timer = time.time()
                 ang_diff = target_ang - self.state[2]
 
@@ -127,13 +142,13 @@ class BasePlanner(object):
 
         self.send_vels(0, 0)
 
-    def move_straight(self, start, end):
-        dist_thresh = 0.001
+    def move_straight(self, start, end, reverse):
+        dist_thresh = 0.01
         dist = np.sqrt((start[1] - end[1])**2 + (start[0] - end[0])**2)
-        k = 1
+        k = 2
 
-        timeout = 2 * dist / self.lin_vel_max
-        
+        timeout = 10
+
         pp = PurePursuit(start, end)
         start_time = time.time()
         timer = time.time()
@@ -144,6 +159,10 @@ class BasePlanner(object):
                 dist = np.sqrt((self.state[1] - end[1])**2 + (self.state[0] - end[0])**2)
 
                 v = min(self.lin_vel_max, dist * k)
+
+                if reverse:
+                    v = v * -1
+
                 w = pp.get_ang_vel(self.state, v)
                 self.send_vels(v, w)
 
@@ -165,12 +184,12 @@ class BasePlanner(object):
             traj.append((t, vel))
 
         return traj
-            
+
 
     def trapezoidal_trajectory_step(self, t, d, max_vel, accel):
         t_ramp = max_vel / accel
         sign = 1
-        if d < 0: 
+        if d < 0:
             sign = -1
 
         if (d >= t_ramp * max_vel):
@@ -198,12 +217,14 @@ class BasePlanner(object):
     def send_vels(self, v, w):
         vl = (2.0 * v - self.L * w) / 2.0
         vr = (2.0 * v + self.L * w) / 2.0
-        
+
+	print("%f %f" %(vl, vr))
+
         hebi_cmd = JointState()
         hebi_cmd.name = self.hebi_paths
         hebi_cmd.velocity = [vl/self.R, -vr/self.R]
-        
-        self.hebi_cmd_pub.publish(hebi_cmd)
+
+#        self.hebi_cmd_pub.publish(hebi_cmd)
 
 if __name__ == '__main__':
     try:

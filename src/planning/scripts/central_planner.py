@@ -3,6 +3,9 @@ import rospkg
 import rospy
 import sys
 
+import numpy as np
+
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Pose
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -22,44 +25,55 @@ class Station(object):
             self.goal = vals[2]
         
     def __str__(self):
-        return "%s: %s" %(self.type, self.goal)
+        return "%s_%s" %(self.station, self.type)
 
 
 class CentralPlanner(object):
     def __init__(self):
         # Planner attributes
         self.state = [0, 0, 0]
+        self.base_traj_done = False
         self.rospack = rospkg.RosPack()
         self.mission_file = rospy.get_param('/central_planner/mission_name', 'mission.txt')
         self.mission_file = self.rospack.get_path('planning') + '/missions/' + self.mission_file
         self.obstacle_locations = {
-            'V1': 0,
-            'V2': 0,
-            'V3': 0,
-            'A_B1': 0,
-            'A_B2': 0,
-            'A_B3': 0,
-            'B_B1': 0,
-            'B_B2': 0,
-            'B_B3': 0
+            'A_V2': 0,
+            'B_V2': 0,
+            'C_V1': 0,
+            'D_A_B1': 0,
+            'D_A_B2': 0,
+            'D_A_B3': 0,
+            'E_V3': 0,
+            'F_V3': 0,
+            'G_B_B1': 0,
+            'G_B_B2': 0,
+            'G_B_B3': 0,
+            'A_WP1': [0.5, 0, 0],
+            'B_WP2': [0, 0, np.pi],
+            'C_WP3': 0,
+            'D_WP4': 0,
         }
-
-        print(self.obstacle_locations)
 
         rospy.init_node('central_planner', anonymous=True)
 
         # Initialize subscribers
-        rospy.Subscriber('base/pose', Pose, self.pose_callback)
+        rospy.Subscriber('base/done', Bool, self.base_done_cb)
 
         # Initialize publishers
-        self.base_target_pub = rospy.Publisher('base/target_pose', Pose, queue_size=10)
+        self.base_target_pub = rospy.Publisher('/base/target_pose', Pose, queue_size=10)
+        self.base_initialize_pub = rospy.Publisher('/base/initialize', Bool, queue_size=10)
 
         # Read mission file
         self.missions = self.parse_mission_file()
 
+        # initialize base planner
+        while self.base_traj_done == False:
+            self.base_initialize_pub.publish(True)
+            rospy.sleep(5)
+
         # Main ROS loop
         for mission in self.missions:
-            for station in missions:
+            for station in mission[:-1]:
                 # go to stop
                 self.go_to_station(station)
 
@@ -69,21 +83,12 @@ class CentralPlanner(object):
                 # perform arm trajectory
                 self.move_arm(target_state, target_location)
 
+            print("Mission Complete!")
+
     ## ROS CALLBACK FUNCTIONS
 
-    def pose_callback(self, msg):
-        # extract state information
-        self.state[0] = msg.position.x
-        self.state[1] = msg.position.y
-
-        quat = [0, 0, 0, 0]
-        quat[0] = msg.orientation.x
-        quat[1] = msg.orientation.y
-        quat[2] = msg.orientation.z
-        quat[3] = msg.orientation.w
-
-        (_, _, yaw) = euler_from_quaternion(quat)
-        self.state[2] = yaw
+    def base_done_cb(self, msg):
+        self.base_traj_done = True
 
     ## HELPER FUNCTIONS
 
@@ -107,7 +112,30 @@ class CentralPlanner(object):
         return missions
 
     def go_to_station(self, station):
-        pass
+        self.base_traj_done = False
+
+        des_state = self.obstacle_locations[station.__str__()]
+        # print(des_state)
+
+        ang_quat = quaternion_from_euler(0, 0, des_state[2])
+        # print(ang_quat)
+
+        pose_msg = Pose()
+        rate = rospy.Rate(10) # 10hz
+
+        pose_msg.position.x = des_state[0]
+        pose_msg.position.y = des_state[1]
+        pose_msg.position.z = 0
+        pose_msg.orientation.x = ang_quat[0]
+        pose_msg.orientation.y = ang_quat[1]
+        pose_msg.orientation.z = ang_quat[2]
+        pose_msg.orientation.w = ang_quat[3]
+
+        self.base_target_pub.publish(pose_msg)
+        print(pose_msg)
+
+        while self.base_traj_done == False:
+            continue
 
     def get_target_info(self):
         return 0, 0
