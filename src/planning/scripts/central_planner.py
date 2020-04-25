@@ -1,29 +1,34 @@
 #!/usr/bin/env python
 import rospkg
 import rospy
+import actionlib
 import sys
 
 import numpy as np
 
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Pose
+from arm_planner.msg import ArmTrajectoryAction
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
+# arm home position: [2.1790659427642822, 2.290069580078125, 0.2229442596435547, 3.900958299636841
+# arm home:  2.720132827758789, 2.601130485534668, -0.0020971298217773438, -24.530969572051454
 
 class Station(object):
     def __init__(self, info):
         vals = info.strip().split(' ')
-        
+
         self.station = vals[0][0]
         self.type = vals[0][1:]
-            
+
         self.goal = None
         if self.type[0] == 'V':
             self.goal = int(vals[1])
         if self.type[0] == 'B' or self.type[0] == 'A':
             self.type += '_' + vals[1]
             self.goal = vals[2]
-        
+
     def __str__(self):
         return "%s_%s" %(self.station, self.type)
 
@@ -63,6 +68,11 @@ class CentralPlanner(object):
         self.base_target_pub = rospy.Publisher('/base/target_pose', Pose, queue_size=10)
         self.base_initialize_pub = rospy.Publisher('/base/initialize', Bool, queue_size=10)
 
+        # Initialize action client
+        self.trajectory_client = actionlib.SimpleActionClient(
+                "/arm_planner/ArmTrajectory", ArmTrajectoryAction)
+        self.trajectory_client.wait_for_server()
+
         # Read mission file
         self.missions = self.parse_mission_file()
 
@@ -81,7 +91,7 @@ class CentralPlanner(object):
                 target_state, target_location = self.get_target_info()
 
                 # perform arm trajectory
-                self.move_arm(target_state, target_location)
+                self.move_arm(station, target_state, target_location)
 
             print("Mission Complete!")
 
@@ -94,21 +104,21 @@ class CentralPlanner(object):
 
     def parse_mission_file(self):
         f = open(self.mission_file, 'r')
-        
+
         lines = f.readlines()
 
         missions = []
         for line in lines:
             mission = []
-            
+
             vals = line.strip().split(',')
             for val in vals[:-1]:
                 s = Station(val)
                 mission.append(s)
-            
+
             mission.append(int(vals[-1]))
             missions.append(mission)
-        
+
         return missions
 
     def go_to_station(self, station):
@@ -140,13 +150,13 @@ class CentralPlanner(object):
     def get_target_info(self):
         return 0, 0
 
-    def move_arm(self, target_state, target_location):
+    def move_arm(self, station, target_state, target_location):
         pass
-    
+
 
 if __name__ == '__main__':
     try:
         l = CentralPlanner()
     except rospy.ROSInternalException:
         pass
-        
+

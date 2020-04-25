@@ -56,6 +56,7 @@ class BasePlanner(object):
 
     def pose_callback(self, msg):
         # extract state information
+        """
         self.state[0] = msg.position.x
         self.state[1] = msg.position.y
 
@@ -67,10 +68,18 @@ class BasePlanner(object):
 
         (_, _, yaw) = euler_from_quaternion(quat)
         self.state[2] = yaw
+        """
 
         # get transform information
         try:
-            (trans,rot) = self.listener.lookupTransform('/odom', '/base_link', rospy.Time(0))
+            (trans,rot) = self.listener.lookupTransform('/map', '/base_link', rospy.Time(0))
+
+            self.state[0] = trans[0]
+            self.state[1] = trans[1]
+
+            (_,_,yaw) = euler_from_quaternion(rot)
+            self.state[2] = yaw
+            print(self.state)
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
 
@@ -129,7 +138,7 @@ class BasePlanner(object):
 
         while abs(ang_diff) > ang_thresh:
             if (time.time() - timer) > self.dt:
-                print("ang diff: %f" %(ang_diff))
+#                print("ang diff: %f" %(ang_diff))
                 timer = time.time()
                 ang_diff = target_ang - self.state[2]
 
@@ -218,13 +227,13 @@ class BasePlanner(object):
         vl = (2.0 * v - self.L * w) / 2.0
         vr = (2.0 * v + self.L * w) / 2.0
 
-	print("%f %f" %(vl, vr))
+#        print("%f %f" %(vl, vr))
 
         hebi_cmd = JointState()
         hebi_cmd.name = self.hebi_paths
         hebi_cmd.velocity = [vl/self.R, -vr/self.R]
 
-#        self.hebi_cmd_pub.publish(hebi_cmd)
+        self.hebi_cmd_pub.publish(hebi_cmd)
 
 if __name__ == '__main__':
     try:
