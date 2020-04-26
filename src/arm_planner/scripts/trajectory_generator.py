@@ -152,7 +152,7 @@ class TrajectoryGenerator(object):
 
 
 
-    def set_initial_pos(self,cur_pos):
+    def set_initial_pose(self,cur_pos):
         if (cur_pos == None):
             return
 
@@ -167,9 +167,9 @@ class TrajectoryGenerator(object):
         self.initialPoseSet = True
 
 
-    def createTrajectory(self,cur_pos = None):
+    def createTrajectory(self,cur_pose = None):
         if (not self.initialPoseSet):
-            self.set_initial_pos(cur_pos)
+            self.set_initial_pose(cur_pose)
         self.validate()
         self.interpolateWorkspaceWaypoints()
         self.generateGoal()

@@ -38,6 +38,10 @@ global NODE_NAME, NaN, PI
 global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 global TYPE_REST, TYPE_CAM, TYPE_TARGET, SPEED_TRAVEL, SPEED_APPROACH, SPEED_DEPART
 
+NODE_NAME = "arm_planner_node"
+NaN = float("NaN")
+PI = np.pi
+
 # TYPES
 TYPE_REST = "rest"
 TYPE_CAM = "camera"
@@ -48,12 +52,11 @@ SPEED_TRAVEL = 0.05
 SPEED_APPROACH = 0.05
 SPEED_DEPART = 0.05
 
+REST_POS_ELBOW_UP = [0.1, 0.3, 0, 0, 0]
+REST_POS_ELBOW_DOWN = [-0.1, 0.3, 0, PI, 0]
+
 VERT_APPROACH_DIST = 0.1
 HORZ_APPROACH_DIST = 0.1
-
-NODE_NAME = "arm_planner_node"
-NaN = float("NaN")
-PI = np.pi
 
 # Hebi names
 GROUP_NAME = "RoboDutchmanArm"
@@ -74,7 +77,7 @@ COMMAND_LIFETIME = 0
 def dist(p1, p2):
     return math.sqrt( math.pow(p1[0] -p2[0],2) + math.pow(p1[1] - p2[0],2) )
 
-class TeleopNode(object):
+class ArmPlannerNode(object):
     def __init__(self):
         global NODE_NAME, NaN, PI
         global GROUP_NAME, GROUP_SIZE, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
@@ -132,7 +135,7 @@ class TeleopNode(object):
         rospy.spin()
         # spin
 
-    def action_server_goal_cb(self, goal):
+    def action_server_cb(self, goal):
         rospy.loginfo("Action server cb called")
         rospy.loginfo(goal)
 
@@ -142,37 +145,45 @@ class TeleopNode(object):
         cur_pose = self.hebi_fb.position
         cur_elbow = kin.get_elbow(cur_pose)
         t = TrajectoryGenerator(names)
+        t.set_initial_pose(cur_pose)
 
         if(goal.type == TYPE_TARGET):
 
             # create waypoint to go to before goal.waypoint_1
-            approach_waypoint = goal.waypoint_1;
+            approach_waypoint = list(goal.waypoint_1);
             if(goal.approach_from_above):
                 approach_waypoint[1] += VERT_APPROACH_DIST
             else:
-                approach_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1))
+                approach_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
 
             # time to get from cur_pose to approach_waypoint
-            rough_approach_time = get_dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
+            rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
 
             # time to get from approach_waypoint to goal.waypoint_1
-            fine_approach_time = get_dist(approach_waypoint, goal.waypoint_1) / SPEED_APPROACH
+            fine_approach_time = dist(approach_waypoint, goal.waypoint_1) / SPEED_APPROACH
 
             # create waypoint to go to after goal.waypoint_2
-            depart_waypoint = goal.waypoint_2;
+            depart_waypoint = list(goal.waypoint_2);
             if(goal.approach_from_above):
                 depart_waypoint[1] += VERT_APPROACH_DIST
             else:
-                depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2))
+                depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2[0]))
 
             # time to get from goal.waypoint_2 to depart_waypoint
-            fine_depart_time = get_dist(depart_waypoint, goal.waypoint_2) / SPEED_DEPART
+            fine_depart_time = dist(depart_waypoint, goal.waypoint_2) / SPEED_DEPART
 
-            t.set_initial_pose(cur_pose)
             t.addWaypoint(approach_waypoint, rough_approach_time, goal.elbow_up)
             t.addWaypoint(goal.waypoint_1,fine_approach_time, goal.elbow_up)
             t.addWaypoint(goal.waypoint_2,goal.duration, goal.elbow_up)
             t.addWaypoint(depart_waypoint, fine_depart_time, goal.elbow_up)
+
+        if(goal.type == TYPE_REST):
+            if(cur_elbow):
+                travel_time = dist(kin.fk(cur_pose),REST_POS_ELBOW_UP) / SPEED_TRAVEL
+                t.addWaypoint(REST_POS_ELBOW_UP, travel_time, True)
+            else:
+                travel_time = dist(kin.fk(cur_pose),REST_POS_ELBOW_DOWN) / SPEED_TRAVEL
+                t.addWaypoint(REST_POS_ELBOW_DOWN, travel_time, True)
 
         goal = None
         try:
@@ -194,6 +205,7 @@ class TeleopNode(object):
         self.action_server.set_succeeded(self.as_result)
 
     def step(self):
+        pass
 
     # Callbacks for hebiros action client
     def trajectory_active_cb(self):
@@ -250,6 +262,6 @@ class TeleopNode(object):
 
 if __name__ == '__main__':
     try:
-        TeleopNode()
+        ArmPlannerNode()
     except rospy.ROSInterruptException:
         pass
