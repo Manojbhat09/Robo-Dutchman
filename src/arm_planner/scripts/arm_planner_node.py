@@ -248,8 +248,9 @@ class ArmPlannerNode(object):
         rospy.loginfo("Action is now active")
 
     def trajectory_feedback_cb(self, msg):
-        rospy.loginfo("Trajectory fb")
-        rospy.loginfo(msg)
+        # rospy.loginfo("Trajectory fb")
+        # rospy.loginfo(msg)
+        pass
 
     def trajectory_done_cb(self,state,result):
         rospy.loginfo("Action is now done")
