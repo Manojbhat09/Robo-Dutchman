@@ -4,9 +4,10 @@ import rospy
 import actionlib
 import arm_planner.msg
 
-NODE_NAME = "arm_planner_test_1_node"
 
 global NODE_NAME
+NODE_NAME = "arm_planner_test_1_node"
+
 
 class arm_test_1(object):
     def __init__(self):
@@ -14,15 +15,18 @@ class arm_test_1(object):
         rospy.init_node(NODE_NAME, anonymous=True)
 
         self.ArmTrajectoryClient = actionlib.SimpleActionClient(\
-                "arm_planner/ArmTrajectory",
+                "/arm_planner/ArmTrajectory",
                 arm_planner.msg.ArmTrajectoryAction)
         self.ArmTrajectoryClient.wait_for_server()
+        rospy.loginfo("APT1: Server is online")
 
         goal = arm_planner.msg.ArmTrajectoryGoal()
         self.ArmTrajectoryClient.send_goal(goal,
                 self.done_cb,
                 self.active_cb,
-                self.result_cb)
+                self.feedback_cb)
+
+        rospy.loginfo("APT1: Sent goal")
         rospy.spin()
 
     def done_cb(self, state, result):

@@ -51,7 +51,7 @@ NAME_3 = "Wrist1"
 NAME_4 = "Wrist2"
 
 #
-ACTION_SERVER_NAME = "ArmTrajectory"
+ACTION_SERVER_NAME = "arm_planner/ArmTrajectory"
 
 
 COMMAND_LIFETIME = 0
@@ -66,14 +66,15 @@ class TeleopNode(object):
         rospy.init_node(NODE_NAME, anonymous=True)
 
         # Action Server variables used to publish fedback/result
-        as_feedback = arm_planner.msg.ArmTrajectoryFeedback()
-        as_result = arm_planner.msg.ArmTrajectoryResult()
+        self.as_feedback = arm_planner.msg.ArmTrajectoryFeedback()
+        self.as_result = arm_planner.msg.ArmTrajectoryResult()
 
         # Create action server
-        action_server = actionlib.SimpleActionServer(ACTION_SERVER_NAME, \
+        self.action_server = actionlib.SimpleActionServer(ACTION_SERVER_NAME, \
                 arm_planner.msg.ArmTrajectoryAction, \
                 execute_cb = self.action_server_cb, \
                 auto_start = False)
+        self.action_server.start()
 
         # Feedback from hebiros
         self.hebi_fb = None
@@ -117,6 +118,7 @@ class TeleopNode(object):
         # spin
 
     def action_server_cb(self, goal):
+        rospy.loginfo("Action server cb called")
         rospy.loginfo(goal)
         self.as_feedback.percent_complete = 100;
         self.action_server.publish_feedback(self.as_feedback)

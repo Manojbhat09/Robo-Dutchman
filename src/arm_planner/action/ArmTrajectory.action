@@ -2,6 +2,7 @@
 string type
 float64[] waypoint_1
 float64[] waypoint_2
+float64[] durations
 bool approach_from_above
 bool elbow_up
 ---
