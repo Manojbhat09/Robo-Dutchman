@@ -55,13 +55,14 @@ class TrajectoryGenerator(object):
         self.times = list([0])
         self.waypoints = [ [0], [0], [0], [0], [0] ]
         self.elbow_up = list([0])
+        self.initialPoseSet = False
 
 
     def addWaypoint(self, waypoint, duration, elbow_up):
         if (not len(waypoint) == 5):
             rospy.logwarn("Need 5 values for waypoint")
 
-        self.times.append(duration)
+        self.times.append(duration + self.times[-1])
 
         for i in range(0,5):
             self.waypoints[i].append(waypoint[i])
@@ -152,6 +153,8 @@ class TrajectoryGenerator(object):
 
 
     def set_initial_pos(self,cur_pos):
+        if (cur_pos == None):
+            return
 
         self.times[0] = 0
         self.elbow_up[0] = kin.get_elbow(cur_pos)
@@ -161,9 +164,12 @@ class TrajectoryGenerator(object):
         for i in range(0,5):
             self.waypoints[i][0] = cur_pos_workspace[0]
 
+        self.initialPoseSet = True
 
-    def createTrajectory(self,cur_pos):
-        self.set_initial_pos(cur_pos)
+
+    def createTrajectory(self,cur_pos = None):
+        if (not self.initialPoseSet):
+            self.set_initial_pos(cur_pos)
         self.validate()
         self.interpolateWorkspaceWaypoints()
         self.generateGoal()

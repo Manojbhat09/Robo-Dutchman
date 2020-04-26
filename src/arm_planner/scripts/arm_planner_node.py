@@ -132,7 +132,7 @@ class TeleopNode(object):
         rospy.spin()
         # spin
 
-    def action_server_cb(self, goal):
+    def action_server_goal_cb(self, goal):
         rospy.loginfo("Action server cb called")
         rospy.loginfo(goal)
 
@@ -140,6 +140,7 @@ class TeleopNode(object):
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
         cur_pose = self.hebi_fb.position
+        cur_elbow = kin.get_elbow(cur_pose)
         t = TrajectoryGenerator(names)
 
         if(goal.type == TYPE_TARGET):
@@ -149,7 +150,7 @@ class TeleopNode(object):
             if(goal.approach_from_above):
                 approach_waypoint[1] += VERT_APPROACH_DIST
             else:
-                approach_waypoint[0] += HORZ_APPROACH_DIST
+                approach_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1))
 
             # time to get from cur_pose to approach_waypoint
             rough_approach_time = get_dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
@@ -157,37 +158,28 @@ class TeleopNode(object):
             # time to get from approach_waypoint to goal.waypoint_1
             fine_approach_time = get_dist(approach_waypoint, goal.waypoint_1) / SPEED_APPROACH
 
+            # create waypoint to go to after goal.waypoint_2
+            depart_waypoint = goal.waypoint_2;
+            if(goal.approach_from_above):
+                depart_waypoint[1] += VERT_APPROACH_DIST
+            else:
+                depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2))
 
+            # time to get from goal.waypoint_2 to depart_waypoint
+            fine_depart_time = get_dist(depart_waypoint, goal.waypoint_2) / SPEED_DEPART
+
+            t.set_initial_pose(cur_pose)
             t.addWaypoint(approach_waypoint, rough_approach_time, goal.elbow_up)
-            t.addWaypoint(goal.waypoint_1,fine_approach_time, elbow_up)
+            t.addWaypoint(goal.waypoint_1,fine_approach_time, goal.elbow_up)
+            t.addWaypoint(goal.waypoint_2,goal.duration, goal.elbow_up)
+            t.addWaypoint(depart_waypoint, fine_depart_time, goal.elbow_up)
 
-
-
-        self.as_feedback.percent_complete = 100;
-        self.action_server.publish_feedback(self.as_feedback)
-        self.action_server.set_succeeded(self.as_result)
-
-    def step(self):
-        elbow = kin.get_elbow(self.hebi_fb.position)
-        cur_pos = kin.fk(self.hebi_fb.position)
-
-        waypoints = [[cur_pos[0],   0.3,    0.3,    0.3,    0.6,    0.6,    0.3,    0.3], \
-                     [cur_pos[1],   0,      0.32,   0.32,   0.32,   0.32,   0.32,   0], \
-                     [cur_pos[2],   0,      0,      0,      0,      0,      0,      0], \
-                     [cur_pos[3],   -PI/2,  -PI/2,  0,      0,      0,      0,      -PI/2], \
-                     [cur_pos[4],   0,      0,      0,      0,      2*PI,   2*PI,   0]]
-
-        num_wayp = len(waypoints[0])
-        times = list()
-        cur_time = 0;
-        elbow_up = list()
-        for i in range(0,num_wayp):
-            elbow_up.append(elbow)
-            times.append(cur_time)
-            cur_time += 2
-
-        t = TrajectoryGenerator(names,times,waypoints,elbow_up)
-        goal = t.createTrajectory()
+        goal = None
+        try:
+            goal = t.createTrajectory()
+        except:
+            self.action_server.setAborted()
+            return
 
         rospy.loginfo(goal)
 
@@ -196,6 +188,12 @@ class TeleopNode(object):
                 self.trajectory_done_cb,\
                 self.trajectory_active_cb,
                 self.trajectory_feedback_cb)
+
+        self.as_feedback.percent_complete = 100;
+        self.action_server.publish_feedback(self.as_feedback)
+        self.action_server.set_succeeded(self.as_result)
+
+    def step(self):
 
     # Callbacks for hebiros action client
     def trajectory_active_cb(self):
