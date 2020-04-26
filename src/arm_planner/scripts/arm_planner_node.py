@@ -16,6 +16,7 @@
 # and an action client to the hebiros node
 
 import numpy as np
+import math
 
 # Standard ros imports
 import rospy
@@ -33,9 +34,22 @@ from hebiros.srv import EntryListSrv, AddGroupFromNamesSrv, SizeSrv, SetCommandL
 from hebiros.msg import WaypointMsg, TrajectoryAction, TrajectoryGoal
 import hebiros.msg
 
-
 global NODE_NAME, NaN, PI
 global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
+global TYPE_REST, TYPE_CAM, TYPE_TARGET, SPEED_TRAVEL, SPEED_APPROACH, SPEED_DEPART
+
+# TYPES
+TYPE_REST = "rest"
+TYPE_CAM = "camera"
+TYPE_TARGET = "target"
+
+# Default ee travel speeds in m/s
+SPEED_TRAVEL = 0.05
+SPEED_APPROACH = 0.05
+SPEED_DEPART = 0.05
+
+VERT_APPROACH_DIST = 0.1
+HORZ_APPROACH_DIST = 0.1
 
 NODE_NAME = "arm_planner_node"
 NaN = float("NaN")
@@ -56,6 +70,10 @@ ACTION_SERVER_NAME = "arm_planner/ArmTrajectory"
 
 COMMAND_LIFETIME = 0
 
+# euclidean distance
+def dist(p1, p2):
+    return math.sqrt( math.pow(p1[0] -p2[0],2) + math.pow(p1[1] - p2[0],2) )
+
 class TeleopNode(object):
     def __init__(self):
         global NODE_NAME, NaN, PI
@@ -68,13 +86,6 @@ class TeleopNode(object):
         # Action Server variables used to publish fedback/result
         self.as_feedback = arm_planner.msg.ArmTrajectoryFeedback()
         self.as_result = arm_planner.msg.ArmTrajectoryResult()
-
-        # Create action server
-        self.action_server = actionlib.SimpleActionServer(ACTION_SERVER_NAME, \
-                arm_planner.msg.ArmTrajectoryAction, \
-                execute_cb = self.action_server_cb, \
-                auto_start = False)
-        self.action_server.start()
 
         # Feedback from hebiros
         self.hebi_fb = None
@@ -109,9 +120,13 @@ class TeleopNode(object):
                 "/hebiros/"+GROUP_NAME+"/trajectory", TrajectoryAction)
         self.trajectory_client.wait_for_server()
 
-        # Wait until we have recieved  first hebi fb
-        while(not self.recievedFirstHebiFb):
-            pass
+        # Create action server
+        self.action_server = actionlib.SimpleActionServer(ACTION_SERVER_NAME, \
+                arm_planner.msg.ArmTrajectoryAction, \
+                execute_cb = self.action_server_cb, \
+                auto_start = False)
+        self.action_server.start()
+
 
         # self.step()
         rospy.spin()
@@ -120,14 +135,39 @@ class TeleopNode(object):
     def action_server_cb(self, goal):
         rospy.loginfo("Action server cb called")
         rospy.loginfo(goal)
+
+        names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
+                FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
+
+        cur_pose = self.hebi_fb.position
+        t = TrajectoryGenerator(names)
+
+        if(goal.type == TYPE_TARGET):
+
+            # create waypoint to go to before goal.waypoint_1
+            approach_waypoint = goal.waypoint_1;
+            if(goal.approach_from_above):
+                approach_waypoint[1] += VERT_APPROACH_DIST
+            else:
+                approach_waypoint[0] += HORZ_APPROACH_DIST
+
+            # time to get from cur_pose to approach_waypoint
+            rough_approach_time = get_dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
+
+            # time to get from approach_waypoint to goal.waypoint_1
+            fine_approach_time = get_dist(approach_waypoint, goal.waypoint_1) / SPEED_APPROACH
+
+
+            t.addWaypoint(approach_waypoint, rough_approach_time, goal.elbow_up)
+            t.addWaypoint(goal.waypoint_1,fine_approach_time, elbow_up)
+
+
+
         self.as_feedback.percent_complete = 100;
         self.action_server.publish_feedback(self.as_feedback)
         self.action_server.set_succeeded(self.as_result)
 
     def step(self):
-        names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
-                FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
-
         elbow = kin.get_elbow(self.hebi_fb.position)
         cur_pos = kin.fk(self.hebi_fb.position)
 
@@ -205,6 +245,10 @@ class TeleopNode(object):
         # Call the size service for the newly created group
         size_resp = self.size_client.call()
         rospy.loginfo("%s has been created and has size %d" %(group_name, size_resp.size))
+
+        # Wait until we have recieved  first hebi fb
+        while(not self.recievedFirstHebiFb):
+            pass
 
 if __name__ == '__main__':
     try:
