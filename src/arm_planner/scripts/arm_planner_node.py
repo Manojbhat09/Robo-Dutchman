@@ -42,9 +42,11 @@ NODE_NAME = "arm_planner_node"
 NaN = float("NaN")
 PI = np.pi
 
+IDSTR = NODE_NAME + ": "
+
 # TYPES
 TYPE_REST = "rest"
-TYPE_CAM = "camera"
+TYPE_CAMERA = "camera"
 TYPE_TARGET = "target"
 
 # Default ee travel speeds in m/s
@@ -52,10 +54,10 @@ SPEED_TRAVEL = 0.05
 SPEED_APPROACH = 0.05
 SPEED_DEPART = 0.05
 
-REST_POS_ELBOW_UP = [0.1, 0.3, 0, 0, 0]
-REST_POS_ELBOW_DOWN = [-0.1, 0.3, 0, PI, 0]
+REST_POS_ELBOW_UP = [0.2, 0.3, 0, 0, 0]
+REST_POS_ELBOW_DOWN = [-0.2, 0.3, 0, PI, 0]
 
-VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.1, 0, PI/2, 0]
+VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.2, 0, PI/2, 0]
 VERT_ELBOW_TRANSITION_TIME = 2
 
 VERT_APPROACH_DIST = 0.1
@@ -139,7 +141,7 @@ class ArmPlannerNode(object):
         # spin
 
     def action_server_cb(self, goal):
-        rospy.loginfo("Action server cb called")
+        rospy.loginfo(IDSTR + "Action server cb called")
         rospy.loginfo(goal)
 
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
@@ -152,7 +154,7 @@ class ArmPlannerNode(object):
         # Determine requested elbow position
         req_elbow = cur_elbow
         if (goal.type == TYPE_TARGET or goal.type == TYPE_CAMERA):
-            req_elbow = goa.waypoint[0] >= 0
+            req_elbow = goal.waypoint_1[0] >= 0
 
         # Create trajectory generaor object
         t = TrajectoryGenerator(names)
@@ -163,24 +165,64 @@ class ArmPlannerNode(object):
         if( (goal.type == TYPE_TARGET or goal.type == TYPE_CAMERA)
                 and not cur_elbow == req_elbow):
 
+            rospy.loginfo(IDSTR + "Switching elbow config")
             # get rest pos after transition (ie opposite of current elbow)
             rest_pos = []
-                if (cur_elbow):
-                    rest_pos = REST_POS_ELBOW_DOWN
-                else:
-                    rest_pos = REST_POS_ELBOW_UP
+            if (cur_elbow):
+                rest_pos = REST_POS_ELBOW_DOWN
+            else:
+                rest_pos = REST_POS_ELBOW_UP
 
-            # time to travel from cur pose to VERT_POSE
-            travel_time_1 = dist(kin.fk(cur_pose), VERT_POSE) / SPEED_TRAVEL
+            # time to travel from cur pose to VERT_POS
+            travel_time_1 = dist(kin.fk(cur_pose), VERT_POS) / SPEED_TRAVEL
 
-            # time to travel from vert_pose to rest pos
-            travel_time_2 = dist(VERT_POSE, rest_pos) / SPEED_TRAVEL
+            # time to travel from vert_pos to rest pos
+            travel_time_2 = dist(VERT_POS, rest_pos) / SPEED_TRAVEL
 
-            t.addWaypoint(VERT_POSE, travel_time, cur_elbow)
-            t.addWaypoint(VERT_POSE, VERT_ELBOW_TRANSITION_TIME, not cur_elbow)
-            t.addWaypoint(rest_pose, travel_time_2, not cur_elbow)
-            cur_pose = kin.ik(rest_pose, not cur_elbow)
+            t.addWaypoint(VERT_POS, 10, cur_elbow)
+            # t.addWaypoint(VERT_POS, 10, not cur_elbow)
+            # t.addWaypoint(VERT_POS, travel_time_1, cur_elbow)
+            # t.addWaypoint(VERT_POS, VERT_ELBOW_TRANSITION_TIME, not cur_elbow)
 
+            # send trajectory to switch in vert pose
+            hebi_goal = t.createTrajectory()
+            self.hebi_is_done = False
+            self.trajectory_client.send_goal(hebi_goal,\
+                    self.trajectory_done_cb,\
+                    self.trajectory_active_cb,
+                    self.trajectory_feedback_cb)
+
+            while (not self.hebi_is_done):
+                pass
+
+            rospy.loginfo(IDSTR + "done switching elbow config part 1")
+
+            # send trajectory to go to rest pose
+            cur_pose = self.hebi_fb.position
+            t = TrajectoryGenerator(names)
+            t.set_initial_pose(cur_pose)
+            t.addWaypoint(VERT_POS, 10, not cur_elbow)
+            t.addWaypoint(rest_pos, 10, not cur_elbow)
+            hebi_goal = t.createTrajectory()
+
+            self.hebi_is_done = False
+            self.trajectory_client.send_goal(hebi_goal,\
+                    self.trajectory_done_cb,\
+                    self.trajectory_active_cb,
+                    self.trajectory_feedback_cb)
+
+            while (not self.hebi_is_done):
+                pass
+
+            rospy.loginfo(IDSTR + "done switching elbow config part 2")
+
+
+            # redo intial setup
+            cur_pose = self.hebi_fb.position
+            cur_elbow = kin.get_elbow(cur_pose)
+
+            t = TrajectoryGenerator(names)
+            t.set_initial_pose(cur_pose)
 
         if(goal.type == TYPE_TARGET):
 
@@ -221,23 +263,28 @@ class ArmPlannerNode(object):
                 travel_time = dist(kin.fk(cur_pose),REST_POS_ELBOW_DOWN) / SPEED_TRAVEL
                 t.addWaypoint(REST_POS_ELBOW_DOWN, travel_time, True)
 
-        goal = None
+        hebi_goal = None
         try:
-            goal = t.createTrajectory()
+            hebi_goal = t.createTrajectory()
         except:
             self.action_server.setAborted()
             return
 
-        rospy.loginfo(goal)
+        # rospy.loginfo(goal)
 
         # Send goal to action server
-        self.trajectory_client.send_goal(goal,\
+        self.hebi_is_done = False
+        self.trajectory_client.send_goal(hebi_goal,\
                 self.trajectory_done_cb,\
                 self.trajectory_active_cb,
                 self.trajectory_feedback_cb)
 
-        self.as_feedback.percent_complete = 100;
-        self.action_server.publish_feedback(self.as_feedback)
+        # self.as_feedback.percent_complete = 100;
+        # self.action_server.publish_feedback(self.as_feedback)
+        #
+        while (not self.hebi_is_done):
+            pass
+
         self.action_server.set_succeeded(self.as_result)
 
     def step(self):
@@ -245,7 +292,7 @@ class ArmPlannerNode(object):
 
     # Callbacks for hebiros action client
     def trajectory_active_cb(self):
-        rospy.loginfo("Action is now active")
+        rospy.loginfo(IDSTR+"Action is now active")
 
     def trajectory_feedback_cb(self, msg):
         # rospy.loginfo("Trajectory fb")
@@ -253,9 +300,10 @@ class ArmPlannerNode(object):
         pass
 
     def trajectory_done_cb(self,state,result):
-        rospy.loginfo("Action is now done")
+        rospy.loginfo(IDSTR+"Action is now done")
         rospy.loginfo(state)
         rospy.loginfo(result)
+        self.hebi_is_done = True
 
 
     # Call back for each time joint state feedback is updated
@@ -264,8 +312,8 @@ class ArmPlannerNode(object):
         # rospy.loginfo(msg)
         if not self.recievedFirstHebiFb:
             self.recievedFirstHebiFb = True
-            rospy.loginfo("Initial hebi_gb")
-            rospy.loginfo(msg)
+            #rospy.loginfo("Initial hebi_fb")
+            #rospy.loginfo(msg)
 
     # Creates hebi group
     def hebi_lookup(self):

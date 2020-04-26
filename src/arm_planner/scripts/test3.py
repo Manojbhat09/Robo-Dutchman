@@ -11,7 +11,7 @@ NODE_NAME = "arm_planner_test_3_node"
 
 # Tests switching orientations, resting
 
-class arm_test_1(object):
+class arm_test(object):
     def __init__(self):
 
         rospy.init_node(NODE_NAME, anonymous=True)
@@ -20,7 +20,7 @@ class arm_test_1(object):
                 "/arm_planner/ArmTrajectory",
                 arm_planner.msg.ArmTrajectoryAction)
         self.ArmTrajectoryClient.wait_for_server()
-        rospy.loginfo("APT2: Server is online")
+        rospy.loginfo("APT3: Server is online")
 
         # First goal (target elbow up)
         goal = arm_planner.msg.ArmTrajectoryGoal()
@@ -38,7 +38,7 @@ class arm_test_1(object):
 
         rospy.loginfo("APT3: Sent goal 1")
 
-        while(not goal_done):
+        while(not self.goal_done):
             pass
 
         # Second goal (target elbow down)
@@ -57,7 +57,7 @@ class arm_test_1(object):
 
         rospy.loginfo("APT3: Sent goal 2")
 
-        while(not goal_done):
+        while(not self.goal_done):
             pass
 
         # Thrid goal (rest (current elbow down) )
@@ -88,6 +88,6 @@ class arm_test_1(object):
 
 if __name__ == '__main__':
     try:
-        arm_test_1()
+        arm_test()
     except rospy.ROSInterruptException:
         pass
