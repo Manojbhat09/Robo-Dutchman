@@ -2,6 +2,6 @@
     <include file="$(find config)/launch/config.launch"/>
     <include file="$(find config)/launch/odom.launch"/>
     <include file="$(find config)/launch/amcl.launch"/>
-    <include file="$(find config)/launch/sensors.launch"/>
-    <include file="$(find config)/launch/teleop_wheels.launch"/>
+<!--    <include file="$(find config)/launch/sensors.launch"/> -->
+<!--    <include file="$(find config)/launch/teleop_wheels.launch"/> -->
 </launch>

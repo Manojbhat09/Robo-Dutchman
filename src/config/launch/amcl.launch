@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(find config)/maps/course2.yaml"/>
+    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(find config)/maps/course3.yaml"/>
 
     <node pkg="amcl" type="amcl" name="amcl">
       <rosparam>
@@ -25,8 +25,8 @@
         first_map_only: true
 
         laser_min_range: 0
-        laser_max_range: 30
-        laser_max_beams: 180
+        laser_max_range: 12
+        laser_max_beams: 30
         laser_z_hit: 0.95
         laser_z_short: 0.1
         laser_z_max: 0.05
@@ -36,7 +36,7 @@
         laser_likelihood_max_dist: 2.0
         laser_model_type: likelihood_field
 
-        odom_model_type: diff-corrected
+        odom_model_type: diff
         odom_alpha1: 0.5
         odom_alpha2: 0.2
         odom_alpha3: 0.1
