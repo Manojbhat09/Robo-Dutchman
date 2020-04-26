@@ -44,17 +44,17 @@ class CentralPlanner(object):
         self.mission_file = rospy.get_param('/central_planner/mission_name', 'mission.txt')
         self.mission_file = self.rospack.get_path('planning') + '/missions/' + self.mission_file
         self.obstacle_locations = {
-            'A_V2': 0,
-            'B_V2': 0,
-            'C_V1': 0,
-            'D_A_B1': 0,
-            'D_A_B2': 0,
-            'D_A_B3': 0,
-            'E_V3': 0,
-            'F_V3': 0,
-            'G_B_B1': 0,
-            'G_B_B2': 0,
-            'G_B_B3': 0,
+            'A_V2': [0.0618, 0.127, 0.049],
+            'B_V2': [0.3772. 0.165, 0.051],
+            'C_V1': [0.7059, 0.189, 0.070],
+            'D_A_B1': [0.9426, 0.201, 0.0385],
+            'D_A_B2': [1.0199, 0.2045, 0.0486],
+            'D_A_B3': [1.0839, 0.2063, 0.0287]
+            'E_V3': [1.3208, 0.2155, 0.0307],
+            'F_V3': [1.4867, 0.1213, -1.8339],
+            'G_B_B1': [1.4191, -0.1027, -1.8392],
+            'G_B_B2': [1.3861, -0.1740, -1.8716],
+            'G_B_B3': [1.3722, -0.2615, -1.8277],
             'A_WP1': [0.5, 0, 0],
             'B_WP2': [0, 0, np.pi],
             'C_WP3': 0,
@@ -111,7 +111,7 @@ class CentralPlanner(object):
                 target_state, target_location = self.get_target_info()
 
                 # perform arm trajectory
-                self.move_arm(station)
+#                self.move_arm(station)
 
             print("Mission Complete!")
 
