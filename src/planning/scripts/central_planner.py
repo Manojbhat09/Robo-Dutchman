@@ -2,13 +2,14 @@
 import rospkg
 import rospy
 import actionlib
+import arm_planner_node
 import sys
 
 import numpy as np
 
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Pose
-from arm_planner.msg import ArmTrajectoryAction
+from arm_planner.msg import ArmTrajectoryAction, ArmTrajectoryGoal
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
@@ -38,6 +39,7 @@ class CentralPlanner(object):
         # Planner attributes
         self.state = [0, 0, 0]
         self.base_traj_done = False
+        self.arm_traj_done = False
         self.rospack = rospkg.RosPack()
         self.mission_file = rospy.get_param('/central_planner/mission_name', 'mission.txt')
         self.mission_file = self.rospack.get_path('planning') + '/missions/' + self.mission_file
@@ -57,6 +59,24 @@ class CentralPlanner(object):
             'B_WP2': [0, 0, np.pi],
             'C_WP3': 0,
             'D_WP4': 0,
+        }
+
+        self.obstacle_arm_configs = {
+            'A_V2': 0,
+            'B_V2': 0,
+            'C_V1': 0,
+            'D_A_B1': 0,
+            'D_A_B2': 0,
+            'D_A_B3': 0,
+            'E_V3': 0,
+            'F_V3': 0,
+            'G_B_B1': 0,
+            'G_B_B2': 0,
+            'G_B_B3': 0,
+            'A_WP1': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
+            'B_WP2': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
+            'C_WP3': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
+            'D_WP4': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
         }
 
         rospy.init_node('central_planner', anonymous=True)
@@ -91,7 +111,7 @@ class CentralPlanner(object):
                 target_state, target_location = self.get_target_info()
 
                 # perform arm trajectory
-                self.move_arm(station, target_state, target_location)
+                self.move_arm(station)
 
             print("Mission Complete!")
 
@@ -99,6 +119,19 @@ class CentralPlanner(object):
 
     def base_done_cb(self, msg):
         self.base_traj_done = True
+
+    def done_cb(self, state, result):
+        self.arm_traj_done = True
+        rospy.loginfo("APT1: Client is done");
+        rospy.loginfo(state);
+        rospy.loginfo(result);
+
+    def active_cb(self):
+        rospy.loginfo("APT1:Cient is active");
+
+    def feedback_cb(self,msg):
+        rospy.loginfo("APT1: feedback");
+        rospy.loginfo(msg);
 
     ## HELPER FUNCTIONS
 
@@ -125,13 +158,9 @@ class CentralPlanner(object):
         self.base_traj_done = False
 
         des_state = self.obstacle_locations[station.__str__()]
-        # print(des_state)
-
         ang_quat = quaternion_from_euler(0, 0, des_state[2])
-        # print(ang_quat)
 
         pose_msg = Pose()
-        rate = rospy.Rate(10) # 10hz
 
         pose_msg.position.x = des_state[0]
         pose_msg.position.y = des_state[1]
@@ -150,8 +179,32 @@ class CentralPlanner(object):
     def get_target_info(self):
         return 0, 0
 
-    def move_arm(self, station, target_state, target_location):
-        pass
+    def rest_arm(self):
+        self.call_arm_action(self, 'rest', [], [], [], 0, 0)
+
+    def move_arm(self, station):
+        des_config = self.obstacle_arm_configs[station.__str__()]
+        self.call_arm_action('target', des_config[0], des_config[1], des_config[2], des_config[3], des_config[4])
+
+    # type: rest, camera, target
+    def call_arm_action(self, goal_type, wp1, wp2, duration, approach_from_above, elbow_up):
+        self.arm_traj_done = False
+
+        goal = ArmTrajectoryGoal()
+        goal.type = goal_type
+        goal.waypoint_1 = wp1
+        goal.waypoint_2 = wp2
+        goal.approach_from_above = approach_from_above
+        goal.duration = duration
+        goal.elbow = elbow_up
+
+        self.ArmTrajectoryClient.send_goal(goal,
+                self.done_cb,
+                self.active_cb,
+                self.feedback_cb)
+
+        while self.arm_traj_done == False:
+            continue
 
 
 if __name__ == '__main__':
