@@ -55,6 +55,9 @@ SPEED_DEPART = 0.05
 REST_POS_ELBOW_UP = [0.1, 0.3, 0, 0, 0]
 REST_POS_ELBOW_DOWN = [-0.1, 0.3, 0, PI, 0]
 
+VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.1, 0, PI/2, 0]
+VERT_ELBOW_TRANSITION_TIME = 2
+
 VERT_APPROACH_DIST = 0.1
 HORZ_APPROACH_DIST = 0.1
 
@@ -142,10 +145,42 @@ class ArmPlannerNode(object):
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
 
+        # get current state
         cur_pose = self.hebi_fb.position
         cur_elbow = kin.get_elbow(cur_pose)
+
+        # Determine requested elbow position
+        req_elbow = cur_elbow
+        if (goal.type == TYPE_TARGET or goal.type == TYPE_CAMERA):
+            req_elbow = goa.waypoint[0] >= 0
+
+        # Create trajectory generaor object
         t = TrajectoryGenerator(names)
         t.set_initial_pose(cur_pose)
+
+        # Change elbow position if necessary
+        # Will end on rest position of opposite elbow
+        if( (goal.type == TYPE_TARGET or goal.type == TYPE_CAMERA)
+                and not cur_elbow == req_elbow):
+
+            # get rest pos after transition (ie opposite of current elbow)
+            rest_pos = []
+                if (cur_elbow):
+                    rest_pos = REST_POS_ELBOW_DOWN
+                else:
+                    rest_pos = REST_POS_ELBOW_UP
+
+            # time to travel from cur pose to VERT_POSE
+            travel_time_1 = dist(kin.fk(cur_pose), VERT_POSE) / SPEED_TRAVEL
+
+            # time to travel from vert_pose to rest pos
+            travel_time_2 = dist(VERT_POSE, rest_pos) / SPEED_TRAVEL
+
+            t.addWaypoint(VERT_POSE, travel_time, cur_elbow)
+            t.addWaypoint(VERT_POSE, VERT_ELBOW_TRANSITION_TIME, not cur_elbow)
+            t.addWaypoint(rest_pose, travel_time_2, not cur_elbow)
+            cur_pose = kin.ik(rest_pose, not cur_elbow)
+
 
         if(goal.type == TYPE_TARGET):
 
@@ -172,10 +207,11 @@ class ArmPlannerNode(object):
             # time to get from goal.waypoint_2 to depart_waypoint
             fine_depart_time = dist(depart_waypoint, goal.waypoint_2) / SPEED_DEPART
 
-            t.addWaypoint(approach_waypoint, rough_approach_time, goal.elbow_up)
-            t.addWaypoint(goal.waypoint_1,fine_approach_time, goal.elbow_up)
-            t.addWaypoint(goal.waypoint_2,goal.duration, goal.elbow_up)
-            t.addWaypoint(depart_waypoint, fine_depart_time, goal.elbow_up)
+            # Add waypoints
+            t.addWaypoint(approach_waypoint, rough_approach_time, req_elbow)
+            t.addWaypoint(goal.waypoint_1,fine_approach_time, req_elbow)
+            t.addWaypoint(goal.waypoint_2,goal.duration, req_elbow)
+            t.addWaypoint(depart_waypoint, fine_depart_time, req_elbow)
 
         if(goal.type == TYPE_REST):
             if(cur_elbow):

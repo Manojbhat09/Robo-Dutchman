@@ -27,7 +27,6 @@ class arm_test_1(object):
         goal.waypoint_2 = [0.3, 0.3, 0, 0, np.pi]
         goal.approach_from_above = False
         goal.duration = 1
-        goal.elbow_up = 1
 
         self.ArmTrajectoryClient.send_goal(goal,
                 self.done_cb,

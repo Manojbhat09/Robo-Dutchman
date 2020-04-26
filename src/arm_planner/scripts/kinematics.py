@@ -62,8 +62,8 @@ def ik(work, elbow_up = False):
 
 def get_elbow(config):
     if (config[1] > 0):
-        return 1
-    return 0
+        return True
+    return False
 # =============================================================================
 # FORWARD KINEMATICS
 # =============================================================================
