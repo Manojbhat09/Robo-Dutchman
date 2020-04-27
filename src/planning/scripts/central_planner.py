@@ -2,7 +2,6 @@
 import rospkg
 import rospy
 import actionlib
-import arm_planner_node
 import sys
 
 import numpy as np
@@ -44,17 +43,17 @@ class CentralPlanner(object):
         self.mission_file = rospy.get_param('/central_planner/mission_name', 'mission.txt')
         self.mission_file = self.rospack.get_path('planning') + '/missions/' + self.mission_file
         self.obstacle_locations = {
-            'A_V2': 0,
-            'B_V2': 0,
-            'C_V1': 0,
-            'D_A_B1': 0,
-            'D_A_B2': 0,
-            'D_A_B3': 0,
-            'E_V3': 0,
-            'F_V3': 0,
-            'G_B_B1': 0,
-            'G_B_B2': 0,
-            'G_B_B3': 0,
+            'A_V2': [-0.0497, 0.0576, 0.0508],
+            'B_V2': [0.2512, 0.0637, 0.0335],
+            'C_V1': [0.5743, 0.0717, 0.0494],
+            'D_A_B1': [0.8029, 0.0835, 0.0315],
+            'D_A_B2': [0.8801, 0.0861, 0.0387],
+            'D_A_B3': [0.9955, 0.0889, 0.0362],
+            'E_V3': [1.1771, 0.191, 0.0129],
+            'G_V3': [1.4867, 0.1213, -1.8339],
+            'H_B_B1': [1.4191, -0.1027, -1.8392],
+            'H_B_B2': [1.3861, -0.1740, -1.8716],
+            'H_B_B3': [1.3722, -0.2615, -1.8277],
             'A_WP1': [0.5, 0, 0],
             'B_WP2': [0, 0, np.pi],
             'C_WP3': 0,
@@ -89,31 +88,36 @@ class CentralPlanner(object):
         self.base_initialize_pub = rospy.Publisher('/base/initialize', Bool, queue_size=10)
 
         # Initialize action client
-        self.trajectory_client = actionlib.SimpleActionClient(
-                "/arm_planner/ArmTrajectory", ArmTrajectoryAction)
-        self.trajectory_client.wait_for_server()
+#        self.trajectory_client = actionlib.SimpleActionClient(
+#                "/arm_planner/ArmTrajectory", ArmTrajectoryAction)
+#        self.trajectory_client.wait_for_server()
 
         # Read mission file
         self.missions = self.parse_mission_file()
 
         # initialize base planner
-        while self.base_traj_done == False:
-            self.base_initialize_pub.publish(True)
-            rospy.sleep(5)
+        rospy.sleep(1)
+#        while self.base_traj_done == False:
+#            self.base_initialize_pub.publish(True)
+#            rospy.sleep(5)
 
         # Main ROS loop
         for mission in self.missions:
             for station in mission[:-1]:
+		print("going to station")
                 # go to stop
                 self.go_to_station(station)
+		print("went to station")
 
                 # observe target info
                 target_state, target_location = self.get_target_info()
 
                 # perform arm trajectory
-                self.move_arm(station)
+#                self.move_arm(station)
+		rospy.sleep(2)
 
             print("Mission Complete!")
+
 
     ## ROS CALLBACK FUNCTIONS
 
