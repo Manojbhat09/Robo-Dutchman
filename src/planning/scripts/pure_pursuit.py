@@ -1,7 +1,7 @@
 import numpy as np
 
 class PurePursuit(object):
-    def __init__(self, start, end, lookahead=0.05, dist_thresh=0.05):
+    def __init__(self, start, end, lookahead=0.10, dist_thresh=0.05):
         self.start = start
         self.end = end
         self.l = lookahead
