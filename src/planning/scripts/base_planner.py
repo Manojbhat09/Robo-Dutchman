@@ -28,10 +28,11 @@ class BasePlanner(object):
         self.lin_acc = rospy.get_param('~lin_acc', 0.4)
 
         self.state = [0, 0, 0]
+	self.state_odom = [0, 0, 0]
         self.target = [0, 0, 0]
         self.L = 0.4064 # 16in = 0.4064m
         self.R = 0.0635 # 2.5in = 0.0635m
-        self.dt = 0.0005
+        self.dt = 0.05
 
         # initialize node
         rospy.init_node('base_planner', anonymous=True)
@@ -83,6 +84,20 @@ class BasePlanner(object):
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
 
+	try:
+            (trans,rot) = self.listener.lookupTransform('/odom', '/base_link', rospy.Time(0))
+
+            self.state_odom[0] = trans[0]
+            self.state_odom[1] = trans[1]
+
+            (_,_,yaw) = euler_from_quaternion(rot)
+            self.state_odom[2] = yaw
+#            print(self.state)
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            pass
+
+	
+
     def target_pose_callback(self, msg):
         # extract target information
         self.target[0] = msg.position.x
@@ -130,17 +145,31 @@ class BasePlanner(object):
 
     def rotate(self, target_ang):
         print("target: %f" %(target_ang))
-        ang_thresh = 0.01
+        ang_thresh = 0.06
         ang_diff = target_ang - self.state[2]
+
+	print("ang_diff: %f" %(ang_diff))
+
+	target_ang_odom = self.state_odom[2] + ang_diff
+	target_ang_odom = np.arctan2(np.sin(target_ang_odom), np.cos(target_ang_odom))
+
+	print("start odom: %f" %(self.state_odom[2]))
+	print("target odom: %f" %(target_ang_odom))
+
         k = 2
 
-        timer = time.time()
+#	timeout = 2 * abs(ang_diff) / self.ang_vel_max
+	timeout = 10
 
-        while abs(ang_diff) > ang_thresh:
+        timer = time.time()
+	start_time = time.time()
+
+        while abs(ang_diff) > ang_thresh and (time.time() - start_time < timeout):
             if (time.time() - timer) > self.dt:
 #                print("ang diff: %f" %(ang_diff))
                 timer = time.time()
-                ang_diff = target_ang - self.state[2]
+#                ang_diff = target_ang - self.state[2]
+		ang_diff = target_ang_odom - self.state_odom[2]
 
                 w = min(self.ang_vel_max, abs(ang_diff) * k)
 
@@ -156,7 +185,8 @@ class BasePlanner(object):
         dist = np.sqrt((start[1] - end[1])**2 + (start[0] - end[0])**2)
         k = 2
 
-        timeout = 10
+#        timeout = 2 * dist / self.lin_vel_max
+	timeout = 10
 
         pp = PurePursuit(start, end)
         start_time = time.time()

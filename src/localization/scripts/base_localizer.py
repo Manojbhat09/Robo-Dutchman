@@ -38,12 +38,12 @@ class BaseLocalizer(object):
         rospy.init_node('base_localizer', anonymous=True)
 
         # initialize services
-#        self.set_command_lifetime_client = rospy.ServiceProxy('/hebiros/' +
-#            GROUP_NAME + '/set_command_lifetime', SetCommandLifetimeSrv)
-#        self.entry_list_client = rospy.ServiceProxy('/hebiros/entry_list', EntryListSrv)
-#        self.add_group_client = rospy.ServiceProxy(
-#            '/hebiros/add_group_from_names', AddGroupFromNamesSrv)
-#        self.size_client = rospy.ServiceProxy('/hebiros/'+GROUP_NAME+'/size', SizeSrv)\
+        self.set_command_lifetime_client = rospy.ServiceProxy('/hebiros/' +
+            GROUP_NAME + '/set_command_lifetime', SetCommandLifetimeSrv)
+        self.entry_list_client = rospy.ServiceProxy('/hebiros/entry_list', EntryListSrv)
+        self.add_group_client = rospy.ServiceProxy(
+            '/hebiros/add_group_from_names', AddGroupFromNamesSrv)
+        self.size_client = rospy.ServiceProxy('/hebiros/'+GROUP_NAME+'/size', SizeSrv)\
 
         # Initialize subscribers
         rospy.Subscriber('/hebiros/' + self.group_name +
@@ -54,11 +54,11 @@ class BaseLocalizer(object):
 	odom_pub = rospy.Publisher("odom", Odometry, queue_size=10)
 
         # Initialize hebi group
-#        self.hebi_lookup()
+        self.hebi_lookup()
 
         # Wait for initial feedback
-#        while(not self.receieved_fb):
-#            pass
+        while(not self.receieved_fb):
+            pass
 
         # Main ROS loop
         rate = rospy.Rate(20) # 10hz
