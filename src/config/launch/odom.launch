@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <node pkg="localization" type="base_localizer.py" name="base_localizer" output="screen"/>
+</launch>

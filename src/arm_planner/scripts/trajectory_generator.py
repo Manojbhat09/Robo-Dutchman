@@ -40,7 +40,7 @@ NAME_3 = "Wrist1"
 NAME_4 = "Wrist2"
 
 COMMAND_LIFETIME = 0
-WAYPOINT_PERIOD = 0.1
+WAYPOINT_PERIOD = 0.2
 
 class TrajectoryGenerator(object):
     global NODE_NAME, NaN

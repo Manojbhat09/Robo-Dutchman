@@ -9,8 +9,8 @@ global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2
 
 GROUP_NAME = "RoboDutchmanWheels"
 FAMILY_NAME = "RoboDutchman"
-NAME_1 = "WheelLeft"
-NAME_2 = "WheelRight"
+NAME_1 = "LeftWheel"
+NAME_2 = "RightWheel"
 
 class TeleopNode(object):
     def __init__(self):
@@ -50,7 +50,7 @@ class TeleopNode(object):
         self.add_group_client = rospy.ServiceProxy('/hebiros/add_group_from_names', AddGroupFromNamesSrv)
         self.size_client = rospy.ServiceProxy('/hebiros/size', SizeSrv)
 
-        self.hebi_lookup()
+#        self.hebi_lookup()
 
         # spin
         rate = rospy.Rate(200) # 10hz
@@ -107,7 +107,7 @@ class TeleopNode(object):
         # Construct a group
         group_name = GROUP_NAME
         names = [NAME_1,NAME_2]
-        families = [FAMILY_NAME]
+        families = [FAMILY_NAME,FAMILY_NAME]
 
         # Call the add_group_from_urdf service to create a group until it succeeds
         # Specific topics and services will now be available under this group's namespace
