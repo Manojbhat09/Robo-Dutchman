@@ -175,3 +175,46 @@ class TrajectoryGenerator(object):
         self.generateGoal()
         return self.goal
 
+	# time in seconds
+	# rospy.get_time()
+        #
+    def degDuration(self):
+        return self.times[-1]
+
+    def getJointStateCommand(self, time):
+        cmd = JointState();
+        cmd.names = self.names;
+
+        # find previous which leg we are on
+        if (time < 0 or time > [self.times[-1]):
+            return null;
+
+        index = -1
+        for i in range(0,len(self.times)-1):
+            if (self.times[i] <= time and time <= self.times[i+1]):
+                index = i
+                break
+
+        if (index == -1):
+            return null
+
+        cmd.position = list([0,0,0,0])
+        cmd.velocity = list([0,0,0,0])
+        cmd.acceleration = list([NaN,NaN,NaN,NaN])
+
+        leg_duration = self.times[index+1] - self.times[index]
+        leg_percentage = 1.0 - ((self.times[index+1] - time) / leg_duration)
+
+        for joint in range(0,4):
+            joint_difference = self.waypoints[index+1] - self.waypoints[index]
+            cmd.position[joint] = self.waypoints[index] + (leg_percentage * leg_duration)
+            cmd.velocity[joint] = joint_difference / leg_duration
+
+        return cmd
+
+
+
+
+
+
+
