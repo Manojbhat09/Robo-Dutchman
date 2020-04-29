@@ -159,7 +159,7 @@ class CentralPlanner(object):
             # wait before moving again
             rospy.sleep(2)
 
-	    # self.rest_arm()
+        self.rest_arm()
 
 #         # Main ROS loop
 #         for mission in self.missions:
@@ -249,7 +249,7 @@ class CentralPlanner(object):
                 wp_new = [v for v in wp]
                 wp_new[-1] = station.goal * np.pi / 180.0
                 self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
-                
+
         elif station.type == 'V3':
                 if station.goal == 0: #open
                     wp_new = [v for v in wp]

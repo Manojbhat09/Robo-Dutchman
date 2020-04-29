@@ -51,7 +51,7 @@ TYPE_TARGET = "target"
 
 # Default ee travel speeds in m/s
 SPEED_TRAVEL = 0.15
-SPEED_APPROACH = 0.05
+SPEED_APPROACH = 0.1
 SPEED_DEPART = 0.15
 
 
@@ -254,8 +254,8 @@ class ArmPlannerNode(object):
             depart_waypoint = list(goal.waypoint_2);
             if(goal.approach_from_above):
                 depart_waypoint[1] += VERT_APPROACH_DIST
-            else:
-                depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2[0]))
+            # else:
+            depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2[0]))
 
             # time to get from goal.waypoint_2 to depart_waypoint
             fine_depart_time = dist(depart_waypoint, goal.waypoint_2) / SPEED_DEPART
