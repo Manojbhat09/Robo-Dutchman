@@ -29,7 +29,7 @@ def ik(work, elbow_up = False):
     wrist_center_y = target_y - (L3 * math.sin(target_theta))
 
     # Elbow
-    arg1 =    ( (wrist_center_x*wrist_center_x) + (wrist_center_y*wrist_center_y) - (L1*L1) - (L2*L2) / (2.0 * L1 * L2))
+    arg1 = ( (wrist_center_x*wrist_center_x) + (wrist_center_y*wrist_center_y) - ((L1*L1) + (L2*L2))) / (2.0 * L1 * L2)
     config[1] = math.acos(arg1)
 
     # Shoulder

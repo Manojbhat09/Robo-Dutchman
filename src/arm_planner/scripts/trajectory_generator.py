@@ -178,15 +178,15 @@ class TrajectoryGenerator(object):
 	# time in seconds
 	# rospy.get_time()
         #
-    def degDuration(self):
+    def getDuration(self):
         return self.times[-1]
 
     def getJointStateCommand(self, time):
         cmd = JointState();
-        cmd.names = self.names;
+        cmd.name = self.names;
 
         # find previous which leg we are on
-        if (time < 0 or time > [self.times[-1]):
+        if (time < 0 or time > self.times[-1]):
             return null;
 
         index = -1
@@ -200,21 +200,46 @@ class TrajectoryGenerator(object):
 
         cmd.position = list([0,0,0,0])
         cmd.velocity = list([0,0,0,0])
-        cmd.acceleration = list([NaN,NaN,NaN,NaN])
+        cmd.effort = list([NaN,NaN,NaN,NaN])
 
         leg_duration = self.times[index+1] - self.times[index]
         leg_percentage = 1.0 - ((self.times[index+1] - time) / leg_duration)
 
+        try:
+            prev_wayp = kin.ik(
+                    [self.waypoints[0][index],
+                    self.waypoints[1][index],
+                    self.waypoints[2][index],
+                    self.waypoints[3][index],
+                    self.waypoints[4][index]],
+                    self.elbow_up[index])
+            next_wayp = kin.ik(
+                    [self.waypoints[0][index+1],
+                    self.waypoints[1][index+1],
+                    self.waypoints[2][index+1],
+                    self.waypoints[3][index+1],
+                    self.waypoints[4][index+1]],
+                    self.elbow_up[index])
+        except:
+            return null
+
         for joint in range(0,4):
-            joint_difference = self.waypoints[index+1] - self.waypoints[index]
-            cmd.position[joint] = self.waypoints[index] + (leg_percentage * leg_duration)
+            joint_difference = next_wayp[joint] - prev_wayp[joint]
+            cmd.position[joint] = prev_wayp[joint] + (leg_percentage * leg_duration)
             cmd.velocity[joint] = joint_difference / leg_duration
 
         return cmd
 
+if __name__ == '__main__':
+    t = TrajectoryGenerator(["a","b","c","d"])
+    t.set_initial_pose(kin.ik([0.2,0,0,0,0],True))
+    t.addWaypoint([0.6,0,0,0,0],1,True)
 
-
-
-
-
+    time = 0
+    while(time <= t.getDuration()):
+        cmd = t.getJointStateCommand(time)
+        print kin.fk(cmd.position)
+        print cmd.velocity
+        print "\n"
+        time = time + 0.1
 
