@@ -1,3 +1,4 @@
 <launch>
-    <node pkg="planning" type="base_planner.py" name="base_planer" output="screen"/>
+    <node pkg="planning" type="base_planner.py" name="base_planner" output="screen"/>
+    <node pkg="arm_planner" type="arm_planner_node.py" name="arm_planner_node" output="screen"/>
 </launch>

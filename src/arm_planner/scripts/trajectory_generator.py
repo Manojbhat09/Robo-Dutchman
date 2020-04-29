@@ -40,7 +40,7 @@ NAME_3 = "Wrist1"
 NAME_4 = "Wrist2"
 
 COMMAND_LIFETIME = 0
-WAYPOINT_PERIOD = 0.1
+WAYPOINT_PERIOD = 0.2
 
 class TrajectoryGenerator(object):
     global NODE_NAME, NaN
@@ -62,11 +62,16 @@ class TrajectoryGenerator(object):
         if (not len(waypoint) == 5):
             rospy.logwarn("Need 5 values for waypoint")
 
+        duration += WAYPOINT_PERIOD -(duration % WAYPOINT_PERIOD)
+
         self.times.append(duration + self.times[-1])
+        self.times.append(1 + self.times[-1])
 
         for i in range(0,5):
             self.waypoints[i].append(waypoint[i])
+            self.waypoints[i].append(waypoint[i])
 
+        self.elbow_up.append(elbow_up)
         self.elbow_up.append(elbow_up)
 
     def validate(self):

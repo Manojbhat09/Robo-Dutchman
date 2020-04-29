@@ -78,7 +78,6 @@ class PurePursuit(object):
             else:
                 return [r, [ix2 + xr, iy2 + yr]]
 
-
     def sign(self, x):
         if x < 0: return -1
         else: return 1

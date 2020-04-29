@@ -80,7 +80,7 @@ class BasePlanner(object):
 
             (_,_,yaw) = euler_from_quaternion(rot)
             self.state[2] = yaw
-            print(self.state)
+#            print(self.state)
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
 
@@ -96,7 +96,7 @@ class BasePlanner(object):
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
 
-	
+
 
     def target_pose_callback(self, msg):
         # extract target information
@@ -113,15 +113,31 @@ class BasePlanner(object):
         self.target[2] = yaw
 
         # do pre-rotation
-        point_ang = np.arctan2(self.target[1] - self.state[1], self.target[0] - self.state[0])
-        ang = point_ang - self.state[2]
+        point_ang_forward = np.arctan2(self.target[1] - self.state[1], self.target[0] - self.state[0])
+	point_ang_reverse = point_ang_forward + np.pi
+	point_ang_reverse = np.arctan2(np.sin(point_ang_reverse), np.cos(point_ang_reverse))
 
-        reverse = abs(ang) > np.pi / 2
+	reverse_step1 = point_ang_reverse - self.state[2]
+	reverse_step1 = np.arctan2(np.sin(reverse_step1), np.cos(reverse_step1))
+	reverse_step2 = self.target[2] - point_ang_reverse
+        reverse_step2 = np.arctan2(np.sin(reverse_step2), np.cos(reverse_step2))
+	reverse_mag = abs(reverse_step1) + abs(reverse_step2)
 
-        if reverse:
-            point_ang += np.pi
-            point_ang = np.arctan2(np.sin(point_ang), np.cos(point_ang))
-            ang = point_ang - self.state[2]
+	forward_step1 = point_ang_forward - self.state[2]
+        forward_step1 = np.arctan2(np.sin(forward_step1), np.cos(forward_step1))
+        forward_step2 = self.target[2] - point_ang_forward
+        forward_step2 = np.arctan2(np.sin(forward_step2), np.cos(forward_step2))
+        forward_mag = abs(forward_step1) + abs(forward_step2)
+
+        ang = point_ang_forward - self.state[2]
+
+        reverse = False
+        point_ang = point_ang_forward
+
+        if reverse_mag < forward_mag:
+	    reverse = True
+            ang = point_ang_reverse - self.state[2]
+            point_ang = point_ang_reverse
 
         rospy.loginfo("pre-rotate %f radians" %(ang))
         self.rotate(point_ang)
@@ -133,6 +149,7 @@ class BasePlanner(object):
 
         # do post-rotation
         ang = self.target[2] - self.state[2]
+        ang = np.arctan2(np.sin(ang), np.cos(ang))
         rospy.loginfo("post-rotate %f radians" %(ang))
         self.rotate(self.target[2])
 
@@ -147,6 +164,7 @@ class BasePlanner(object):
         print("target: %f" %(target_ang))
         ang_thresh = 0.06
         ang_diff = target_ang - self.state[2]
+        ang_diff = np.arctan2(np.sin(ang_diff), np.cos(ang_diff))
 
 	print("ang_diff: %f" %(ang_diff))
 
@@ -170,6 +188,7 @@ class BasePlanner(object):
                 timer = time.time()
 #                ang_diff = target_ang - self.state[2]
 		ang_diff = target_ang_odom - self.state_odom[2]
+                ang_diff = np.arctan2(np.sin(ang_diff), np.cos(ang_diff))
 
                 w = min(self.ang_vel_max, abs(ang_diff) * k)
 
@@ -181,7 +200,7 @@ class BasePlanner(object):
         self.send_vels(0, 0)
 
     def move_straight(self, start, end, reverse):
-        dist_thresh = 0.01
+        dist_thresh = 0.03
         dist = np.sqrt((start[1] - end[1])**2 + (start[0] - end[0])**2)
         k = 2
 

@@ -15,6 +15,9 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 # arm home position: [2.1790659427642822, 2.290069580078125, 0.2229442596435547, 3.900958299636841
 # arm home:  2.720132827758789, 2.601130485534668, -0.0020971298217773438, -24.530969572051454
 
+global PI
+PI = np.pi;
+
 class Station(object):
     def __init__(self, info):
         vals = info.strip().split(' ')
@@ -43,39 +46,41 @@ class CentralPlanner(object):
         self.mission_file = rospy.get_param('/central_planner/mission_name', 'mission.txt')
         self.mission_file = self.rospack.get_path('planning') + '/missions/' + self.mission_file
         self.obstacle_locations = {
-            'A_V2': [-0.0287, 0.0899, 0.0318],
-            'B_V2': [0.2612, 0.0979, 0.0521],
-            'C_V1': [0.5649, 0.1149, 0.0386],
-            'D_A_B1': [0.8029, 0.0835, 0.0315],
-            'D_A_B2': [0.8801, 0.0861, 0.0387],
-            'D_A_B3': [0.9955, 0.0889, 0.0362],
-            'E_V3': [1.1650, 0.1325, 0.0056],
-            'G_V3': [1.20255, 0.0739, -1.6422],
-            'H_B_B1': [1.1981, -0.1184, -1.6094],
-            'H_B_B2': [1.2031, -0.1802, -1.6009],
-            'H_B_B3': [1.2017, -0.2384, -1.6116],
-            'A_WP1': [0.5, 0, 0],
-            'B_WP2': [0, 0, np.pi],
-            'C_WP3': 0,
-            'D_WP4': 0,
+            'A_V2':     [-0.0457, 0.1197, 0.0328],
+            'B_V2':     [0.2612, 0.1298, 0.0328],
+            'C_V1':     [0.5649, 0.1397, 0.0328],
+            'D_A_B1':   [0.8029, 0.1475, 0.0328],
+            'D_A_B2':   [0.8801, 0.1501, 0.0328],
+            'D_A_B3':   [0.9955, 0.1539, 0.0328],
+            'E_V3':     [1.1650, 0.1594, 0.0328],
+            'G_V3':     [1.2025, 0.0739, -1.6422],
+            'H_B_B1':   [1.2163, -0.1184, -1.6422],
+            'H_B_B2':   [1.2207, -0.1802, -1.6422],
+            'H_B_B3':   [1.2249, -0.2384, -1.6422],
+            'A_WP1':    [0.5, 0, 0],
+            'B_WP2':    [0, 0, np.pi],
+            'C_WP3':    0,
+            'D_WP4':    0,
         }
 
+        self.break_flip_travel_distance = 0;
+
         self.obstacle_arm_configs = {
-            'A_V2': 0,
-            'B_V2': 0,
-            'C_V1': 0,
-            'D_A_B1': 0,
-            'D_A_B2': 0,
-            'D_A_B3': 0,
-            'E_V3': 0,
-            'F_V3': 0,
-            'G_B_B1': 0,
-            'G_B_B2': 0,
-            'G_B_B3': 0,
-            'A_WP1': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
-            'B_WP2': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
-            'C_WP3': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
-            'D_WP4': [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], 1, 0, 0],
+            'A_V2':     [[0.484, 0.305, 0.000, 0.000, 0.000], 1, False, False],
+            'B_V2':     [[0.44044892356291787, 0.29076380676899394, 0.06668000000000007, -1.4759094715118408, 0.5103678703308105], 1, 0, 0],
+            'C_V1':     [[0.4205544895715952, 0.3008996769756665, 0.06668000000000006, 0.026120424270629883, 0.2049703598022461], 1, 0, 0],
+            'D_A_B1':   [[0.4875333502141161, 0.2841991785503116, 0.06668000000000006, -0.009450674057006836, -0.07741165161132812], 1, 0, 0],
+            'D_A_B2':   [[0.4875333502141161, 0.2841991785503116, 0.06668000000000006, -0.009450674057006836, -0.07741165161132812], 1, 0, 0],
+            'D_A_B3':   [[0.4875333502141161, 0.2841991785503116, 0.06668000000000006, -0.009450674057006836, -0.07741165161132812], 1, 0, 0],
+            'E_V3':     [[0.49382208124737353, 0.3039623751839387, 0.06668000000000006, -1.3669278621673584, 0.3056488037109375], 1, 0, 0],
+            'G_V3':     [[0.5048843915158507, 0.3022600311342453, 0.06668000000000006, 0.06752753257751465, 0.21131181716918945], 1, 0, 0],
+            'H_B_B1':   [[0, 0, 0, 0, 0], 1, 0, 0],
+            'H_B_B2':   [[0, 0, 0, 0, 0], 1, 0, 0],
+            'H_B_B3':   [[0, 0, 0, 0, 0], 1, 0, 0],
+            'A_WP1':    [[0, 0, 0, 0, 0], 1, 0, 0],
+            'B_WP2':    [[0, 0, 0, 0, 0], 1, 0, 0],
+            'C_WP3':    [[0, 0, 0, 0, 0], 1, 0, 0],
+            'D_WP4':    [[0, 0, 0, 0, 0], 1, 0, 0],
         }
 
         rospy.init_node('central_planner', anonymous=True)
@@ -88,36 +93,42 @@ class CentralPlanner(object):
         self.base_initialize_pub = rospy.Publisher('/base/initialize', Bool, queue_size=10)
 
         # Initialize action client
-#        self.trajectory_client = actionlib.SimpleActionClient(
-#                "/arm_planner/ArmTrajectory", ArmTrajectoryAction)
-#        self.trajectory_client.wait_for_server()
+        self.trajectory_client = actionlib.SimpleActionClient(
+                "/arm_planner/ArmTrajectory", ArmTrajectoryAction)
+        self.trajectory_client.wait_for_server()
 
         # Read mission file
         self.missions = self.parse_mission_file()
 
         # initialize base planner
         rospy.sleep(1)
-#        while self.base_traj_done == False:
-#            self.base_initialize_pub.publish(True)
-#            rospy.sleep(5)
+
+	# reset arm
+#	self.rest_arm()
+#	return
 
         # Main ROS loop
         for mission in self.missions:
             for station in mission[:-1]:
+
+		# send arm to home position
+#		self.rest_arm()
+
+                # go to station
 		print("going to station")
-                # go to stop
+		print(station)
                 self.go_to_station(station)
-		print("went to station")
 
                 # observe target info
                 target_state, target_location = self.get_target_info()
 
                 # perform arm trajectory
 #                self.move_arm(station)
+
+		# wait before moving again
 		rospy.sleep(2)
 
             print("Mission Complete!")
-
 
     ## ROS CALLBACK FUNCTIONS
 
@@ -184,11 +195,30 @@ class CentralPlanner(object):
         return 0, 0
 
     def rest_arm(self):
-        self.call_arm_action(self, 'rest', [], [], [], 0, 0)
+        self.call_arm_action('rest', [], [], 1, False, False)
 
     def move_arm(self, station):
         des_config = self.obstacle_arm_configs[station.__str__()]
-        self.call_arm_action('target', des_config[0], des_config[1], des_config[2], des_config[3], des_config[4])
+	wp = des_config[0]
+	duration = des_config[1]
+	approach_from_above = des_config[2]
+	elbow_up = des_config[3]
+
+	if station.type == 'V1' or station.type == 'V2':
+            wp_new = [v for v in wp]
+            wp_new[-1] = station.goal * np.pi / 180.0
+            self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
+	elif station.type == 'V3':
+            if station.goal == 0: #open
+                wp_new = [v for v in wp]
+                wp_new[-1] = -np.pi / 2
+		self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
+            else:
+                pass
+        elif station.type[0] == 'A':
+            pass
+        elif station.type[0] == 'B':
+            pass
 
     # type: rest, camera, target
     def call_arm_action(self, goal_type, wp1, wp2, duration, approach_from_above, elbow_up):
@@ -200,9 +230,9 @@ class CentralPlanner(object):
         goal.waypoint_2 = wp2
         goal.approach_from_above = approach_from_above
         goal.duration = duration
-        goal.elbow = elbow_up
+        goal.elbow_up = elbow_up
 
-        self.ArmTrajectoryClient.send_goal(goal,
+        self.trajectory_client.send_goal(goal,
                 self.done_cb,
                 self.active_cb,
                 self.feedback_cb)

@@ -5,7 +5,7 @@
       <remap from="/scan" to="/scan"/>
       <rosparam>
         min_particles: 100
-        max_particles: 500
+        max_particles: 1000
         kld_err: 0.01
         kld_z: 0.99
         update_min_d: 0.005
@@ -14,9 +14,12 @@
         transform_tolerance: 0.1
 #        recovery_alpha_slow: 0.001
 #        recovery_alpha_fast: 0.1
-        initial_pose_x: 0.8231
-        initial_pose_y: 0.1387
-        initial_pose_a: 0.0379
+#        initial_pose_x: 0.8231
+#        initial_pose_y: 0.1387
+#        initial_pose_a: 0.0379
+        initial_pose_x: -0.0457
+        initial_pose_y: 0.1197
+        initial_pose_a: 0.0328
 #        initial_pose_x: 0.1814
 #        initial_pose_y: 0.1235
 #        initial_pose_a: -0.05

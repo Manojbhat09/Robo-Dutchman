@@ -50,12 +50,12 @@ TYPE_CAMERA = "camera"
 TYPE_TARGET = "target"
 
 # Default ee travel speeds in m/s
-SPEED_TRAVEL = 0.05
+SPEED_TRAVEL = 0.15
 SPEED_APPROACH = 0.05
-SPEED_DEPART = 0.05
+SPEED_DEPART = 0.15
 
-REST_POS_ELBOW_UP = [0.2, 0.3, 0, 0, 0]
-REST_POS_ELBOW_DOWN = [-0.2, 0.3, 0, PI, 0]
+REST_POS_ELBOW_UP = [0.18, 0.2, 0, 0, 0]
+REST_POS_ELBOW_DOWN = [-0.18, 0.2, 0, PI, 0]
 
 VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.2, 0, PI/2, 0]
 VERT_ELBOW_TRANSITION_TIME = 2
@@ -162,7 +162,7 @@ class ArmPlannerNode(object):
 
         # Change elbow position if necessary
         # Will end on rest position of opposite elbow
-        if( (goal.type == TYPE_TARGET or goal.type == TYPE_CAMERA)
+        if( False and (goal.type == TYPE_TARGET or goal.type == TYPE_CAMERA)
                 and not cur_elbow == req_elbow):
 
             rospy.loginfo(IDSTR + "Switching elbow config")
