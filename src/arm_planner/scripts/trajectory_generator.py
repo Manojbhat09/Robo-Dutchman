@@ -202,31 +202,54 @@ class TrajectoryGenerator(object):
         cmd.velocity = list([0,0,0,0])
         cmd.effort = list([NaN,NaN,NaN,NaN])
 
+        epsilon = 0.001
         leg_duration = self.times[index+1] - self.times[index]
         leg_percentage = 1.0 - ((self.times[index+1] - time) / leg_duration)
+        leg_percentage_epsilon = 1.0 - ((self.times[index+1] - (time+epsilon)) / leg_duration)
 
-        try:
-            prev_wayp = kin.ik(
-                    [self.waypoints[0][index],
-                    self.waypoints[1][index],
-                    self.waypoints[2][index],
-                    self.waypoints[3][index],
-                    self.waypoints[4][index]],
-                    self.elbow_up[index])
-            next_wayp = kin.ik(
-                    [self.waypoints[0][index+1],
-                    self.waypoints[1][index+1],
-                    self.waypoints[2][index+1],
-                    self.waypoints[3][index+1],
-                    self.waypoints[4][index+1]],
-                    self.elbow_up[index])
-        except:
-            return null
+        print leg_percentage
+        print leg_percentage_epsilon
+
+        # Calculate current workspace waypoint
+        wayp = list([0,0,0,0,0])
+        wayp_epsilon = list([0,0,0,0,0])
+        prev_wayp = \
+                [self.waypoints[0][index],
+                self.waypoints[1][index],
+                self.waypoints[2][index],
+                self.waypoints[3][index],
+                self.waypoints[4][index]]
+
+        next_wayp = \
+                [self.waypoints[0][index+1],
+                self.waypoints[1][index+1],
+                self.waypoints[2][index+1],
+                self.waypoints[3][index+1],
+                self.waypoints[4][index+1]]
+
+        for dof in range(0,5):
+            difference = next_wayp[dof] - prev_wayp[dof]
+            wayp[dof] = prev_wayp[dof] + (leg_percentage * difference)
+            wayp_epsilon[dof] = prev_wayp[dof] + (leg_percentage_epsilon * difference)
+
+
+        print wayp
+        print wayp_epsilon
+
+        cmd.position = kin.ik(wayp,self.elbow_up[index])
+        position_epsilon = kin.ik(wayp_epsilon,self.elbow_up[index])
 
         for joint in range(0,4):
-            joint_difference = next_wayp[joint] - prev_wayp[joint]
-            cmd.position[joint] = prev_wayp[joint] + (leg_percentage * leg_duration)
-            cmd.velocity[joint] = joint_difference / leg_duration
+            cmd.velocity[joint] = (cmd.position[joint] - position_epsilon[joint]) / epsilon
+
+        # Calculate current joint velocity)
+
+        # Calculate workspace waypoint a small time in the future
+        wayp_epsilon = list([0,0,0,0,0])
+
+        for dof in range(0,5):
+            difference = next_wayp[dof] - prev_wayp[dof]
+            wayp[dof] = prev_wayp[dof] + (leg_percentage * leg_duration)
 
         return cmd
 

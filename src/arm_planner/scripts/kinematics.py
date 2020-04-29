@@ -30,7 +30,16 @@ def ik(work, elbow_up = False):
 
     # Elbow
     arg1 = ( (wrist_center_x*wrist_center_x) + (wrist_center_y*wrist_center_y) - ((L1*L1) + (L2*L2))) / (2.0 * L1 * L2)
-    config[1] = math.acos(arg1)
+
+    try:
+        config[1] = math.acos(arg1)
+    except ValueError:
+        print "(work,wirst_center_x,wrist_center_y, arg1)"
+        print work
+        print wrist_center_x
+        print wrist_center_y
+        print arg1
+        raise ValueError
 
     # Shoulder
     config[0] = math.atan2( wrist_center_y, wrist_center_x) \

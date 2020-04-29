@@ -47,7 +47,7 @@ class LidarProcessor(object):
         ranges = list(msg.ranges)
 
         for i in range(len(list(ranges))):
-            if ranges[i] > 2 or ranges[i] < 0.25:
+            if ranges[i] > 2 or ranges[i] < 0.2:
                 ranges[i] = float('inf')
 
         new_msg.ranges = tuple(ranges)

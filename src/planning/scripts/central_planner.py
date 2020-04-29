@@ -6,6 +6,8 @@ import sys
 
 import numpy as np
 
+from Queue import PriorityQueue
+
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Pose
 from arm_planner.msg import ArmTrajectoryAction, ArmTrajectoryGoal
@@ -53,30 +55,48 @@ class CentralPlanner(object):
             'D_A_B2':   [0.8801, 0.1501, 0.0328],
             'D_A_B3':   [0.9955, 0.1539, 0.0328],
             'E_V3':     [1.1650, 0.1594, 0.0328],
-            'G_V3':     [1.2025, 0.0739, -1.6422],
-            'H_B_B1':   [1.2163, -0.1184, -1.6422],
-            'H_B_B2':   [1.2207, -0.1802, -1.6422],
-            'H_B_B3':   [1.2249, -0.2384, -1.6422],
+            'G_V3':     [1.2025, 0.0739, -1.6427],
+            'H_B_B1':   [1.2164, -0.1184, -1.6427],
+            'H_B_B2':   [1.2208, -0.1802, -1.6427],
+            'H_B_B3':   [1.2250, -0.2384, -1.6427],
             'A_WP1':    [0.5, 0, 0],
             'B_WP2':    [0, 0, np.pi],
             'C_WP3':    0,
             'D_WP4':    0,
         }
 
-        self.break_flip_travel_distance = 0;
+        self.obstacle_priorities = {
+            'A_V2':     1,
+            'B_V2':     2,
+            'C_V1':     3,
+            'D_A_B1':   4,
+            'D_A_B2':   5,
+            'D_A_B3':   6,
+            'E_V3':     7,
+            'G_V3':     8,
+            'H_B_B1':   9,
+            'H_B_B2':   10,
+            'H_B_B3':   11,
+            'A_WP1':    12,
+            'B_WP2':    13,
+            'C_WP3':    14,
+            'D_WP4':    15,
+        }
+
+        self.break_flip_travel_distance = 0.03;
 
         self.obstacle_arm_configs = {
-            'A_V2':     [[0.484, 0.305, 0.000, 0.000, 0.000], 1, False, False],
-            'B_V2':     [[0.44044892356291787, 0.29076380676899394, 0.06668000000000007, -1.4759094715118408, 0.5103678703308105], 1, 0, 0],
-            'C_V1':     [[0.4205544895715952, 0.3008996769756665, 0.06668000000000006, 0.026120424270629883, 0.2049703598022461], 1, 0, 0],
-            'D_A_B1':   [[0.4875333502141161, 0.2841991785503116, 0.06668000000000006, -0.009450674057006836, -0.07741165161132812], 1, 0, 0],
-            'D_A_B2':   [[0.4875333502141161, 0.2841991785503116, 0.06668000000000006, -0.009450674057006836, -0.07741165161132812], 1, 0, 0],
-            'D_A_B3':   [[0.4875333502141161, 0.2841991785503116, 0.06668000000000006, -0.009450674057006836, -0.07741165161132812], 1, 0, 0],
-            'E_V3':     [[0.49382208124737353, 0.3039623751839387, 0.06668000000000006, -1.3669278621673584, 0.3056488037109375], 1, 0, 0],
-            'G_V3':     [[0.5048843915158507, 0.3022600311342453, 0.06668000000000006, 0.06752753257751465, 0.21131181716918945], 1, 0, 0],
-            'H_B_B1':   [[0, 0, 0, 0, 0], 1, 0, 0],
-            'H_B_B2':   [[0, 0, 0, 0, 0], 1, 0, 0],
-            'H_B_B3':   [[0, 0, 0, 0, 0], 1, 0, 0],
+            'A_V2':     [[0.454, 0.285, 0.000, 0.000, 0.000], 1, False, False],
+            'B_V2':     [[0.44044892356291787, 0.29076380676899394, 0.000, -1.5708, 0.000], 1, True, False],
+            'C_V1':     [[0.4205544895715952, 0.3008996769756665, 0.000, 0.000, 0.000], 1, False, False],
+            'D_A_B1':   [[0.4875333502141161, 0.2841991785503116, 0.000, 0.000, 0.000], 1, False, False],
+            'D_A_B2':   [[0.4875333502141161, 0.2841991785503116, 0.000, 0.000, 0.000], 1, False, False],
+            'D_A_B3':   [[0.4875333502141161, 0.2841991785503116, 0.000, 0.000, 0.000], 1, False, False],
+            'E_V3':     [[0.49382208124737353, 0.3039623751839387, 0.000, -1.5708, 0.000], 1, True, False],
+            'G_V3':     [[0.5048843915158507, 0.3022600311342453, 0.000, 0.000, 0.000], 1, False, False],
+            'H_B_B1':   [[0.4875333502141161, 0.2841991785503116, 0.000, 0.000, 0.000], 1, False, False],
+            'H_B_B2':   [[0.4875333502141161, 0.2841991785503116, 0.000, 0.000, 0.000], 1, False, False],
+            'H_B_B3':   [[0.4875333502141161, 0.2841991785503116, 0.000, 0.000, 0.000], 1, False, False],
             'A_WP1':    [[0, 0, 0, 0, 0], 1, 0, 0],
             'B_WP2':    [[0, 0, 0, 0, 0], 1, 0, 0],
             'C_WP3':    [[0, 0, 0, 0, 0], 1, 0, 0],
@@ -100,6 +120,13 @@ class CentralPlanner(object):
         # Read mission file
         self.missions = self.parse_mission_file()
 
+        # Optimize mission file with queue
+        q = PriorityQueue()
+        for mission in self.missions:
+            for station in mission[:-1]:
+                p = self.obstacle_priorities[station.__str__()]
+                q.put((p, station))
+
         # initialize base planner
         rospy.sleep(1)
 
@@ -107,28 +134,60 @@ class CentralPlanner(object):
 #	self.rest_arm()
 #	return
 
-        # Main ROS loop
-        for mission in self.missions:
-            for station in mission[:-1]:
+        while not q.empty():
+            item = q.get()
+            station = item[1]
 
-		# send arm to home position
-#		self.rest_arm()
+            # send arm to home position
+            self.rest_arm()
 
-                # go to station
-		print("going to station")
-		print(station)
-                self.go_to_station(station)
+            # hacky fix for odometry issue
+            if station.station == 'G':
+                 self.call_base_action(self.obstacle_locations['D_A_B2'])
 
-                # observe target info
-                target_state, target_location = self.get_target_info()
+            # go to station
+            print("going to station")
+            print(station)
+            self.move_base(station)
 
-                # perform arm trajectory
-#                self.move_arm(station)
+            # observe target info
+            target_state, target_location = self.get_target_info()
 
-		# wait before moving again
-		rospy.sleep(2)
+            # perform arm trajectory
+            self.move_arm(station)
 
-            print("Mission Complete!")
+            # wait before moving again
+            rospy.sleep(2)
+
+	    # self.rest_arm()
+
+#         # Main ROS loop
+#         for mission in self.missions:
+#             for station in mission[:-1]:
+
+#                 # send arm to home position
+#                 self.rest_arm()
+
+#                 # hacky fix for odometry issue
+#                 if station.station == 'G':
+#                     self.call_base_action(self.obstacle_locations['D_A_B2'])
+
+#                 # go to station
+# 		print("going to station")
+# 		print(station)
+#                 self.move_base(station)
+
+#                 # observe target info
+#                 target_state, target_location = self.get_target_info()
+
+#                 # perform arm trajectory
+# #                self.move_arm(station)
+
+# 		# wait before moving again
+# 		rospy.sleep(2)
+
+#             print("Mission Complete!")
+
 
     ## ROS CALLBACK FUNCTIONS
 
@@ -137,15 +196,15 @@ class CentralPlanner(object):
 
     def done_cb(self, state, result):
         self.arm_traj_done = True
-        rospy.loginfo("APT1: Client is done");
+        rospy.loginfo("Arm Trajectory: Client is done");
         rospy.loginfo(state);
         rospy.loginfo(result);
 
     def active_cb(self):
-        rospy.loginfo("APT1:Cient is active");
+        rospy.loginfo("Arm Trajectory: Client is active");
 
     def feedback_cb(self,msg):
-        rospy.loginfo("APT1: feedback");
+        rospy.loginfo("Arm Trajectory: Feedback");
         rospy.loginfo(msg);
 
     ## HELPER FUNCTIONS
@@ -169,10 +228,51 @@ class CentralPlanner(object):
 
         return missions
 
-    def go_to_station(self, station):
+    def move_base(self, station):
+        des_state = self.obstacle_locations[station.__str__()]
+        self.call_base_action(des_state)
+
+    def get_target_info(self):
+        return 0, 0
+
+    def rest_arm(self):
+        self.call_arm_action('rest', [], [], 1, False, False)
+
+    def move_arm(self, station):
+        des_config = self.obstacle_arm_configs[station.__str__()]
+        wp = des_config[0]
+        duration = des_config[1]
+        approach_from_above = des_config[2]
+        elbow_up = des_config[3]
+
+        if station.type == 'V1' or station.type == 'V2':
+                wp_new = [v for v in wp]
+                wp_new[-1] = station.goal * np.pi / 180.0
+                self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
+                
+        elif station.type == 'V3':
+                if station.goal == 0: #open
+                    wp_new = [v for v in wp]
+                    wp_new[-1] = -np.pi / 2
+                    self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
+                else:
+                    pass
+
+        elif station.type[0] == 'A' or station.type[0] == 'B':
+            wp_up = [v for v in wp]
+            wp_down = [v for v in wp]
+
+            wp_up[1] = wp_up[1] + self.break_flip_travel_distance
+            wp_down[1] = wp_down[1] - self.break_flip_travel_distance
+
+            if station.goal == 'U':
+                self.call_arm_action('target', wp_down, wp_up, duration, approach_from_above, elbow_up)
+            else:
+                self.call_arm_action('target', wp_up, wp_down, duration, approach_from_above, elbow_up)
+
+    def call_base_action(self, des_state):
         self.base_traj_done = False
 
-        des_state = self.obstacle_locations[station.__str__()]
         ang_quat = quaternion_from_euler(0, 0, des_state[2])
 
         pose_msg = Pose()
@@ -190,35 +290,6 @@ class CentralPlanner(object):
 
         while self.base_traj_done == False:
             continue
-
-    def get_target_info(self):
-        return 0, 0
-
-    def rest_arm(self):
-        self.call_arm_action('rest', [], [], 1, False, False)
-
-    def move_arm(self, station):
-        des_config = self.obstacle_arm_configs[station.__str__()]
-	wp = des_config[0]
-	duration = des_config[1]
-	approach_from_above = des_config[2]
-	elbow_up = des_config[3]
-
-	if station.type == 'V1' or station.type == 'V2':
-            wp_new = [v for v in wp]
-            wp_new[-1] = station.goal * np.pi / 180.0
-            self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
-	elif station.type == 'V3':
-            if station.goal == 0: #open
-                wp_new = [v for v in wp]
-                wp_new[-1] = -np.pi / 2
-		self.call_arm_action('target', wp, wp_new, duration, approach_from_above, elbow_up)
-            else:
-                pass
-        elif station.type[0] == 'A':
-            pass
-        elif station.type[0] == 'B':
-            pass
 
     # type: rest, camera, target
     def call_arm_action(self, goal_type, wp1, wp2, duration, approach_from_above, elbow_up):

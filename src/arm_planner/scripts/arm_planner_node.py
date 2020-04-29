@@ -54,13 +54,15 @@ SPEED_TRAVEL = 0.15
 SPEED_APPROACH = 0.05
 SPEED_DEPART = 0.15
 
+
 REST_POS_ELBOW_UP = [0.18, 0.2, 0, 0, 0]
 REST_POS_ELBOW_DOWN = [-0.18, 0.2, 0, PI, 0]
 
 VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.2, 0, PI/2, 0]
 VERT_ELBOW_TRANSITION_TIME = 2
 
-VERT_APPROACH_DIST = 0.1
+VERT_APPROACH_DIST = 0.12
+VERT_HORZ_APPROACH_DIST = 0.3
 HORZ_APPROACH_DIST = 0.1
 
 # Hebi names
@@ -228,13 +230,22 @@ class ArmPlannerNode(object):
 
             # create waypoint to go to before goal.waypoint_1
             approach_waypoint = list(goal.waypoint_1);
+            rough_approach_time = 0
             if(goal.approach_from_above):
                 approach_waypoint[1] += VERT_APPROACH_DIST
+                rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
+
+               # pre_approach_waypoint = approach_waypoint + \
+               #     (VERT_HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
+               # pre_approach_time = dist(kin.fk(cur_pose), pre_approach_waypoint) / SPEED_TRAVEL
+               # t.addWaypoint(pre_approach_waypoint, pre_approach_time, req_elbow)
+
+               # rough_approach_time = dist(pre_approach_waypoint, approach_waypoint) / SPEED_APPROACH
             else:
                 approach_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
+                rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
 
             # time to get from cur_pose to approach_waypoint
-            rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
 
             # time to get from approach_waypoint to goal.waypoint_1
             fine_approach_time = dist(approach_waypoint, goal.waypoint_1) / SPEED_APPROACH
@@ -267,6 +278,7 @@ class ArmPlannerNode(object):
         try:
             hebi_goal = t.createTrajectory()
         except:
+            rospy.logwarn("Arm Planner Node FAILED to create trajectory")
             self.action_server.setAborted()
             return
 
