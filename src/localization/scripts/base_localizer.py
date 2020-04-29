@@ -7,6 +7,7 @@ import numpy as np
 from hebiros.srv import EntryListSrv, AddGroupFromNamesSrv, SizeSrv, SetCommandLifetimeSrv
 from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose, TransformStamped
+from nav_msgs.msg import Odometry
 
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
@@ -23,7 +24,7 @@ class BaseLocalizer(object):
     def __init__(self):
         # HEBI attributes
         self.group_name = 'RoboDutchmanWheels'
-        self.hebi_names = ['LeftWheel', 'RightWheel'] 
+        self.hebi_names = ['LeftWheel', 'RightWheel']
         self.family_names = ['RoboDutchman', 'RoboDutchman']
         self.receieved_fb = False
 
@@ -45,21 +46,22 @@ class BaseLocalizer(object):
         self.size_client = rospy.ServiceProxy('/hebiros/'+GROUP_NAME+'/size', SizeSrv)\
 
         # Initialize subscribers
-        rospy.Subscriber('/hebiros/' + self.group_name + 
+        rospy.Subscriber('/hebiros/' + self.group_name +
             '/feedback/joint_state', JointState, self.hebi_fb_cb)
 
         # Initialize publishers
         pose_pub = rospy.Publisher("base/pose", Pose, queue_size=10)
+	odom_pub = rospy.Publisher("odom", Odometry, queue_size=10)
 
         # Initialize hebi group
         self.hebi_lookup()
-        
+
         # Wait for initial feedback
         while(not self.receieved_fb):
             pass
 
         # Main ROS loop
-        rate = rospy.Rate(10) # 10hz
+        rate = rospy.Rate(20) # 10hz
         while not rospy.is_shutdown():
             # publish pose
             pose_msg = Pose()
@@ -72,6 +74,22 @@ class BaseLocalizer(object):
             pose_msg.orientation.w = self.ang_quat[3]
 
             pose_pub.publish(pose_msg)
+
+	    # publish odom
+            odom_msg = Odometry()
+            odom_msg.header.stamp = rospy.Time.now()
+            odom_msg.header.frame_id = "odom"
+            odom_msg.child_frame_id ="base_link"
+
+            odom_msg.pose.pose.position.x = self.state[0]
+            odom_msg.pose.pose.position.y = self.state[1]
+            odom_msg.pose.pose.position.z = 0
+            odom_msg.pose.pose.orientation.x = self.ang_quat[0]
+            odom_msg.pose.pose.orientation.y = self.ang_quat[1]
+            odom_msg.pose.pose.orientation.z = self.ang_quat[2]
+            odom_msg.pose.pose.orientation.w = self.ang_quat[3]
+
+            odom_pub.publish(odom_msg)
 
             # send transform message to ROS
             broadcaster = tf2_ros.StaticTransformBroadcaster()
@@ -91,7 +109,7 @@ class BaseLocalizer(object):
 
             broadcaster.sendTransform(tf_msg)
 
-            rate.sleep()            
+            rate.sleep()
 
     ## ROS CALLBACK FUNCTIONS
 
@@ -102,7 +120,7 @@ class BaseLocalizer(object):
         pos[1] = -1 * msg.position[1]
 #        pos = msg.position
 #        pos[1] = pos[1] * -1
-        
+
         # Set received_fb flag and prev_pos on first callback
         if not self.receieved_fb:
             self.receieved_fb = True
@@ -115,7 +133,7 @@ class BaseLocalizer(object):
 
     ## HELPER FUNCTIONS
 
-    def runge_kutta_update(self, cur_pos): 
+    def runge_kutta_update(self, cur_pos):
         left_diff = self.wheel_radius * (cur_pos[0] - self.prev_pos[0])
         right_diff = self.wheel_radius * (cur_pos[1] - self.prev_pos[1])
 
@@ -123,19 +141,19 @@ class BaseLocalizer(object):
         w = (right_diff - left_diff)/self.wheel_separation
 
         th = self.state[2]
-    
+
         k00 = v*np.cos(th)
         k01 = v*np.sin(th)
         k02 = w
-        
+
         k10 = v*np.cos(th + 0.5*k02)
         k11 = v*np.sin(th + 0.5*k02)
         k12 = w
-        
+
         k20 = v*np.cos(th + 0.5*k12)
         k21 = v*np.sin(th + 0.5*k12)
         k22 = w
-        
+
         k30 = v*np.cos(th + k22)
         k31 = v*np.sin(th + k22)
         k32 = w
@@ -172,4 +190,4 @@ if __name__ == '__main__':
         l = BaseLocalizer()
     except rospy.ROSInternalException:
         pass
-        
+

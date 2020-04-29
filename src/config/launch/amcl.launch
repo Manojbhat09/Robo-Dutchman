@@ -1,0 +1,63 @@
+<launch>
+    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(find config)/maps/course3.yaml"/>
+
+    <node pkg="amcl" type="amcl" name="amcl">
+      <remap from="/scan" to="/scan"/>
+      <rosparam>
+        min_particles: 100
+        max_particles: 1000
+        kld_err: 0.01
+        kld_z: 0.99
+        update_min_d: 0.005
+        update_min_a: 0.01
+        resample_interval: 10
+        transform_tolerance: 0.1
+#        recovery_alpha_slow: 0.001
+#        recovery_alpha_fast: 0.1
+#        initial_pose_x: 0.8231
+#        initial_pose_y: 0.1387
+#        initial_pose_a: 0.0379
+        initial_pose_x: -0.0457
+        initial_pose_y: 0.1197
+        initial_pose_a: 0.0328
+#        initial_pose_x: 0.1814
+#        initial_pose_y: 0.1235
+#        initial_pose_a: -0.05
+#        initial_pose_x: 0
+#        initial_pose_y: 0
+#        initial_pose_a: 0
+        initial_cov_xx: 0.015
+        initial_cov_yy: 0.015
+        initial_cov_aa: 0.010
+        gui_publish_rate: -1.0
+        save_pose_rate: 0.5
+        use_map_topic: true
+        first_map_only: true
+
+        laser_min_range: 0.25
+        laser_max_range: 2
+        laser_max_beams: 30
+#	defaults: 0.95, 0.1, 0.05, 0.05, 0.2 
+#        laser_z_hit: 0.80
+#        laser_z_short: 0.01
+#        laser_z_max: 0.07
+#        laser_z_rand: 0.20
+#        laser_sigma_hit: 8.0
+
+#        laser_lambda_short: 0.1
+#        laser_likelihood_max_dist: 2.0
+#        laser_model_type: likelihood_field_prob
+
+        odom_model_type: diff-corrected
+        odom_alpha1: 0.3
+        odom_alpha2: 0.3
+        odom_alpha3: 0.06
+        odom_alpha4: 0.2
+        odom_alpha5: 0.2
+        odom_frame_id: odom
+        base_frame_id: base_link
+        global_frame_id: map
+        tf_broadcast: true
+      </rosparam>
+    </node>
+</launch>

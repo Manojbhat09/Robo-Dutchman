@@ -29,9 +29,17 @@ def ik(work, elbow_up = False):
     wrist_center_y = target_y - (L3 * math.sin(target_theta))
 
     # Elbow
-    config[1] = math.acos( \
-            ( (wrist_center_x**2) + (wrist_center_y**2) - L1**2 - L2**2 ) \
-            / (2 * L1 * L2))
+    arg1 = ( (wrist_center_x*wrist_center_x) + (wrist_center_y*wrist_center_y) - ((L1*L1) + (L2*L2))) / (2.0 * L1 * L2)
+
+    try:
+        config[1] = math.acos(arg1)
+    except ValueError:
+        print "(work,wirst_center_x,wrist_center_y, arg1)"
+        print work
+        print wrist_center_x
+        print wrist_center_y
+        print arg1
+        raise ValueError
 
     # Shoulder
     config[0] = math.atan2( wrist_center_y, wrist_center_x) \
@@ -63,8 +71,8 @@ def ik(work, elbow_up = False):
 
 def get_elbow(config):
     if (config[1] > 0):
-        return 1
-    return 0
+        return True
+    return False
 # =============================================================================
 # FORWARD KINEMATICS
 # =============================================================================

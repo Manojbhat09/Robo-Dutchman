@@ -49,17 +49,32 @@ class TrajectoryGenerator(object):
     # times: time stamps of wapyoints of length m
     # names: names of joints
     # waypoints: a 5 x m matrix of waypoints
-    def __init__(self, names, times, waypoints, elbow_up):
+    def __init__(self, names):
         # input validation
-        self.times = times
         self.names = names
-        self.waypoints = waypoints
-        self.elbow_up = elbow_up
-        self.num_waypoints = len(times)
-        self.num_joints = len(names)
-        self.num_workspace_dof = len(waypoints)
+        self.times = list([0])
+        self.waypoints = [ [0], [0], [0], [0], [0] ]
+        self.elbow_up = list([0])
+        self.initialPoseSet = False
 
-        if (not self.num_waypoints == len(waypoints[0])):
+
+    def addWaypoint(self, waypoint, duration, elbow_up):
+        if (not len(waypoint) == 5):
+            rospy.logwarn("Need 5 values for waypoint")
+
+        self.times.append(duration + self.times[-1])
+
+        for i in range(0,5):
+            self.waypoints[i].append(waypoint[i])
+
+        self.elbow_up.append(elbow_up)
+
+    def validate(self):
+        self.num_waypoints = len(self.times)
+        self.num_joints = len(self.names)
+        self.num_workspace_dof = len(self.waypoints)
+
+        if (not self.num_waypoints == len(self.waypoints[0])):
             rospy.logwarn("num waypoints mismatch" + self.num_waypoints + "|" \
                     + len(waypoints[0]))
             return
@@ -72,16 +87,16 @@ class TrajectoryGenerator(object):
             rospy.logwarn("number of joints isnt 4")
             return
 
-        if (not len(waypoints) == 5):
+        if (not len(self.waypoints) == 5):
             rospy.logwarn("invalid num workspace targets")
             return
 
-        if (not len(elbow_up) == self.num_waypoints):
+        if (not len(self.elbow_up) == self.num_waypoints):
             rospy.logwarn("invalid length of elbow up")
             return
 
 
-        self.interp_times = np.arange(0,times[-1] + WAYPOINT_PERIOD,WAYPOINT_PERIOD)
+        self.interp_times = np.arange(0,self.times[-1] + WAYPOINT_PERIOD,WAYPOINT_PERIOD)
         self.num_interp_waypoints = len(self.interp_times)
 
         # a 5 x num_inter_waypoints matrix
@@ -89,6 +104,7 @@ class TrajectoryGenerator(object):
 
         # a num_interp_waypoints x 5 matrx
         self.configuration_waypoints = list()
+
 
     def interpolateWorkspaceWaypoints(self):
         self.workspace_waypoints = list()
@@ -136,8 +152,117 @@ class TrajectoryGenerator(object):
 
 
 
-    def createTrajectory(self):
+    def set_initial_pose(self,cur_pos):
+        if (cur_pos == None):
+            return
+
+        self.times[0] = 0
+        self.elbow_up[0] = kin.get_elbow(cur_pos)
+
+        cur_pos_workspace = kin.fk(cur_pos)
+        print cur_pos_workspace
+        for i in range(0,5):
+            self.waypoints[i][0] = cur_pos_workspace[0]
+
+        self.initialPoseSet = True
+
+
+    def createTrajectory(self,cur_pose = None):
+        if (not self.initialPoseSet):
+            self.set_initial_pose(cur_pose)
+        self.validate()
         self.interpolateWorkspaceWaypoints()
         self.generateGoal()
         return self.goal
+
+	# time in seconds
+	# rospy.get_time()
+        #
+    def getDuration(self):
+        return self.times[-1]
+
+    def getJointStateCommand(self, time):
+        cmd = JointState();
+        cmd.name = self.names;
+
+        # find previous which leg we are on
+        if (time < 0 or time > self.times[-1]):
+            return null;
+
+        index = -1
+        for i in range(0,len(self.times)-1):
+            if (self.times[i] <= time and time <= self.times[i+1]):
+                index = i
+                break
+
+        if (index == -1):
+            return null
+
+        cmd.position = list([0,0,0,0])
+        cmd.velocity = list([0,0,0,0])
+        cmd.effort = list([NaN,NaN,NaN,NaN])
+
+        epsilon = 0.001
+        leg_duration = self.times[index+1] - self.times[index]
+        leg_percentage = 1.0 - ((self.times[index+1] - time) / leg_duration)
+        leg_percentage_epsilon = 1.0 - ((self.times[index+1] - (time+epsilon)) / leg_duration)
+
+        print leg_percentage
+        print leg_percentage_epsilon
+
+        # Calculate current workspace waypoint
+        wayp = list([0,0,0,0,0])
+        wayp_epsilon = list([0,0,0,0,0])
+        prev_wayp = \
+                [self.waypoints[0][index],
+                self.waypoints[1][index],
+                self.waypoints[2][index],
+                self.waypoints[3][index],
+                self.waypoints[4][index]]
+
+        next_wayp = \
+                [self.waypoints[0][index+1],
+                self.waypoints[1][index+1],
+                self.waypoints[2][index+1],
+                self.waypoints[3][index+1],
+                self.waypoints[4][index+1]]
+
+        for dof in range(0,5):
+            difference = next_wayp[dof] - prev_wayp[dof]
+            wayp[dof] = prev_wayp[dof] + (leg_percentage * difference)
+            wayp_epsilon[dof] = prev_wayp[dof] + (leg_percentage_epsilon * difference)
+
+
+        print wayp
+        print wayp_epsilon
+
+        cmd.position = kin.ik(wayp,self.elbow_up[index])
+        position_epsilon = kin.ik(wayp_epsilon,self.elbow_up[index])
+
+        for joint in range(0,4):
+            cmd.velocity[joint] = (cmd.position[joint] - position_epsilon[joint]) / epsilon
+
+        # Calculate current joint velocity)
+
+        # Calculate workspace waypoint a small time in the future
+        wayp_epsilon = list([0,0,0,0,0])
+
+        for dof in range(0,5):
+            difference = next_wayp[dof] - prev_wayp[dof]
+            wayp[dof] = prev_wayp[dof] + (leg_percentage * leg_duration)
+
+        return cmd
+
+if __name__ == '__main__':
+    t = TrajectoryGenerator(["a","b","c","d"])
+    t.set_initial_pose(kin.ik([0.2,0,0,0,0],True))
+    t.addWaypoint([0.6,0,0,0,0],1,True)
+
+    time = 0
+    while(time <= t.getDuration()):
+        cmd = t.getJointStateCommand(time)
+        print kin.fk(cmd.position)
+        print cmd.velocity
+        print "\n"
+        time = time + 0.1
 
