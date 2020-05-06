@@ -38,6 +38,8 @@ global NODE_NAME, NaN, PI
 global GROUP_NAME, FAMILY_NAME, NAME_1, NAME_2, NAME_3, NAME_4
 global TYPE_REST, TYPE_CAM, TYPE_TARGET, SPEED_TRAVEL, SPEED_APPROACH, SPEED_DEPART
 
+EXECUTE_WITH_HEBI_ACTION = False
+
 NODE_NAME = "arm_planner_node"
 NaN = float("NaN")
 PI = np.pi
@@ -55,14 +57,14 @@ SPEED_APPROACH = 0.1
 SPEED_DEPART = 0.15
 
 
-REST_POS_ELBOW_UP = [0.18, 0.2, 0, 0, 0]
-REST_POS_ELBOW_DOWN = [-0.18, 0.2, 0, PI, 0]
+REST_POS_ELBOW_UP = [0.18, 0.32, 0, 0, 0]
+REST_POS_ELBOW_DOWN = [-0.18, 0.32, 0, PI, 0]
 
 VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.2, 0, PI/2, 0]
 VERT_ELBOW_TRANSITION_TIME = 2
 
-VERT_APPROACH_DIST = 0.12
-VERT_HORZ_APPROACH_DIST = 0.3
+VERT_APPROACH_DIST = 0.05
+VERT_HORZ_APPROACH_DIST = 0.05
 HORZ_APPROACH_DIST = 0.1
 
 # Hebi names
@@ -121,6 +123,10 @@ class ArmPlannerNode(object):
         # Subscribe to hebi fb joint state
         rospy.Subscriber('/hebiros/' + GROUP_NAME + \
                 '/feedback/joint_state', JointState, self.hebi_fb_cb)
+
+
+        self.command_pub = rospy.Publisher('hebiros/' + GROUP_NAME + \
+                '/command/joint_state', JointState)
 
 	# Initialize hebi group
         self.hebi_lookup()
@@ -232,15 +238,16 @@ class ArmPlannerNode(object):
             approach_waypoint = list(goal.waypoint_1);
             rough_approach_time = 0
             if(goal.approach_from_above):
+                pre_approach_waypoint = approach_waypoint
+                pre_approach_waypoint[1] += VERT_APPROACH_DIST
+                pre_approach_waypoint[0] += (VERT_HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
+                pre_approach_time = dist(kin.fk(cur_pose), pre_approach_waypoint) / SPEED_TRAVEL
+                t.addWaypoint(pre_approach_waypoint, pre_approach_time, req_elbow)
+
                 approach_waypoint[1] += VERT_APPROACH_DIST
-                rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
+                #rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
 
-               # pre_approach_waypoint = approach_waypoint + \
-               #     (VERT_HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
-               # pre_approach_time = dist(kin.fk(cur_pose), pre_approach_waypoint) / SPEED_TRAVEL
-               # t.addWaypoint(pre_approach_waypoint, pre_approach_time, req_elbow)
-
-               # rough_approach_time = dist(pre_approach_waypoint, approach_waypoint) / SPEED_APPROACH
+                rough_approach_time = dist(pre_approach_waypoint, approach_waypoint) / SPEED_APPROACH
             else:
                 approach_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
                 rough_approach_time = dist(kin.fk(cur_pose), approach_waypoint) / SPEED_TRAVEL
@@ -264,7 +271,9 @@ class ArmPlannerNode(object):
             t.addWaypoint(approach_waypoint, rough_approach_time, req_elbow)
             t.addWaypoint(goal.waypoint_1,fine_approach_time, req_elbow)
             t.addWaypoint(goal.waypoint_2,goal.duration, req_elbow)
-            t.addWaypoint(depart_waypoint, fine_depart_time, req_elbow)
+
+            if(goal.approach_from_above):
+                t.addWaypoint(depart_waypoint, fine_depart_time, req_elbow)
 
         if(goal.type == TYPE_REST):
             if(cur_elbow):
@@ -274,33 +283,41 @@ class ArmPlannerNode(object):
                 travel_time = dist(kin.fk(cur_pose),REST_POS_ELBOW_DOWN) / SPEED_TRAVEL
                 t.addWaypoint(REST_POS_ELBOW_DOWN, travel_time, True)
 
-        hebi_goal = None
-        try:
-            hebi_goal = t.createTrajectory()
-        except:
-            rospy.logwarn("Arm Planner Node FAILED to create trajectory")
-            self.action_server.setAborted()
-            return
-
-        # rospy.loginfo(goal)
 
         # Send goal to action server
-        self.hebi_is_done = False
-        self.trajectory_client.send_goal(hebi_goal,\
-                self.trajectory_done_cb,\
-                self.trajectory_active_cb,
-                self.trajectory_feedback_cb)
+        if (EXECUTE_WITH_HEBI_ACTION):
+            hebi_goal = None
+            try:
+                hebi_goal = t.createTrajectory()
+            except:
+                rospy.logwarn("Arm Planner Node FAILED to create trajectory")
+                self.action_server.setAborted()
+                return
+            self.hebi_is_done = False
+            self.trajectory_client.send_goal(hebi_goal,\
+                    self.trajectory_done_cb,\
+                    self.trajectory_active_cb,
+                    self.trajectory_feedback_cb)
 
-        # self.as_feedback.percent_complete = 100;
-        # self.action_server.publish_feedback(self.as_feedback)
-        #
-        while (not self.hebi_is_done):
-            pass
+            # self.as_feedback.percent_complete = 100;
+            # self.action_server.publish_feedback(self.as_feedback)
+            #
+            while (not self.hebi_is_done):
+                pass
+        else:
+            self.execute_trajectory(t)
 
         self.action_server.set_succeeded(self.as_result)
 
-    def step(self):
-        pass
+    def execute_trajectory(self, trajectory):
+        time = 0;
+        period = 0.005
+
+        while(time < trajectory.times[-1]):
+            self.command_pub.publish(trajectory.getJointStateCommand(time))
+            time += period
+            rospy.sleep(period)
+
 
     # Callbacks for hebiros action client
     def trajectory_active_cb(self):
