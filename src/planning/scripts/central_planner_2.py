@@ -123,10 +123,10 @@ class CentralPlanner(object):
             'D_A_B1':   [[0.5015333502141161, 0.3851991785503116, 0.000, 0.170, 0.000], 1, False, False],
             'D_A_B2':   [[0.5025333502141161, 0.3851991785503116, 0.000, 0.170, 0.000], 1, False, False],
             'D_A_B3':   [[0.5065333502141161, 0.3851991785503116, 0.000, 0.170, 0.000], 1, False, False],
-            'E_V3':     [[0.47382208124737353, 0.2889623751839387, 0.000, -1.5708, 0.000], 2, True, False],
+            'E_V3':     [[0.48382208124737353, 0.2889623751839387, 0.000, -1.5708, 0.000], 2, True, False],
             'G_V3':     [[0.5298843915158507, 0.3622600311342453, 0.000, 0.170, 0.000], 2, False, False],
             'H_B_B1':   [[0.5325333502141161, 0.3091991785503116, 0.000, 0.170, 0.000], 1, False, False],
-            'H_B_B2':   [[0.5375333502141161, 0.3091991785503116, 0.000, 0.170, 0.000], 1, False, False],
+            'H_B_B2':   [[0.5325333502141161, 0.3091991785503116, 0.000, 0.170, 0.000], 1, False, False],
             'H_B_B3':   [[0.5325333502141161, 0.3091991785503116, 0.000, 0.170, 0.000], 1, False, False],
             'A_WP1':    [[0, 0, 0, 0, 0], 1, 0, 0],
             'B_WP2':    [[0, 0, 0, 0, 0], 1, 0, 0],
@@ -182,25 +182,49 @@ class CentralPlanner(object):
 
             # check if goal is same as target
             initial_state = self.initial_states[station.__str__()]
-            if initial_state != station.goal:                 
-                # perform initial arm trajectory
-                self.move_arm(station, -1)
+            if 'D'in station.station or 'H' in station.station:
+                for i in range(2):
+                    if initial_state != station.goal:                 
+                        # perform initial arm trajectory
+                        self.move_arm(station, -1)
 
-                # rospy.sleep(2)
+                        rospy.sleep(2)
 
-                # self.rest_arm()
+                        self.rest_arm()
 
-                # image_found = self.check_target_image(station)
+                        image_found = self.check_target_image(station)
 
-                # counter = 0
-                # while counter < 3 and image_found == False:
-                #     image_found = self.check_target_image(station)
-                #     counter += 1
+                        counter = 0
+                        while counter < 3 and image_found == False:
+                            image_found = self.check_target_image(station)
+                            counter += 1
 
-                # wait before moving again
-                rospy.sleep(2)
+                        # wait before moving again
+                        rospy.sleep(2)
+                    else:
+                        print("station already at correct state")
+
             else:
-                print("station already at correct state")
+                if initial_state != station.goal:                 
+                    # perform initial arm trajectory
+                    self.move_arm(station, -1)
+
+                    rospy.sleep(2)
+
+                    self.rest_arm()
+
+                    image_found = self.check_target_image(station)
+
+                    counter = 0
+                    while counter < 3 and image_found == False:
+                        image_found = self.check_target_image(station)
+                        counter += 1
+
+                    # wait before moving again
+                    rospy.sleep(2)
+                else:
+                    print("station already at correct state")
+               
 
         self.rest_arm()
 
@@ -321,9 +345,9 @@ class CentralPlanner(object):
         approach_from_above = des_config[2]
         elbow_up = des_config[3]
 
-        if station.station == 'C':
-            print("compensating value")
-            station.goal = station.goal * 1.2
+        # if station.station == 'B':
+        #     print("compensating value")
+        #     station.goal = station.goal * 1.5
 
         # spigot or gate valve
         if station.type == 'V1' or station.type == 'V2':

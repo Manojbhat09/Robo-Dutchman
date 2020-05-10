@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+<!--    <include file="$(find realsense2_camera)/launch/rs_aligned_depth.launch"/> -->
+
+<!--    <node pkg="localization" type="tracker.py" name="tracker" output="screen"/> -->
+
+    <node pkg="obiwan" type="obiwancpp" name="obiwancpp" output="screen">
+        <param name="param_debug" value="1" />
+    </node>
+
+</launch>

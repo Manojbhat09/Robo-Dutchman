@@ -53,8 +53,8 @@ TYPE_TARGET = "target"
 
 # Default ee travel speeds in m/s
 SPEED_TRAVEL = 0.15
-SPEED_APPROACH = 0.1
-SPEED_DEPART = 0.15
+SPEED_APPROACH = 0.05
+SPEED_DEPART = 0.04
 
 
 REST_POS_ELBOW_UP = [0.18, 0.32, 0, 0, 0]
@@ -63,8 +63,8 @@ REST_POS_ELBOW_DOWN = [-0.18, 0.32, 0, PI, 0]
 VERT_POS = [0, kin.L1 + kin.L2 + kin.L3 - 0.2, 0, PI/2, 0]
 VERT_ELBOW_TRANSITION_TIME = 2
 
-VERT_APPROACH_DIST = 0.05
-VERT_HORZ_APPROACH_DIST = 0.05
+VERT_APPROACH_DIST = 0.08
+VERT_HORZ_APPROACH_DIST = 0.10
 HORZ_APPROACH_DIST = 0.1
 
 # Hebi names
@@ -149,8 +149,8 @@ class ArmPlannerNode(object):
         # spin
 
     def action_server_cb(self, goal):
-        rospy.loginfo(IDSTR + "Action server cb called")
-        rospy.loginfo(goal)
+        # rospy.loginfo(IDSTR + "Action server cb called")
+        # rospy.loginfo(goal)
 
         names = [FAMILY_NAME+"/"+NAME_1,FAMILY_NAME+"/"+NAME_2,
                 FAMILY_NAME+"/"+NAME_3,FAMILY_NAME+"/"+NAME_4]
@@ -261,8 +261,8 @@ class ArmPlannerNode(object):
             depart_waypoint = list(goal.waypoint_2);
             if(goal.approach_from_above):
                 depart_waypoint[1] += VERT_APPROACH_DIST
-            # else:
-            depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2[0]))
+            else:
+                depart_waypoint[0] += (HORZ_APPROACH_DIST * np.sign(-goal.waypoint_2[0]))
 
             # time to get from goal.waypoint_2 to depart_waypoint
             fine_depart_time = dist(depart_waypoint, goal.waypoint_2) / SPEED_DEPART
@@ -271,9 +271,13 @@ class ArmPlannerNode(object):
             t.addWaypoint(approach_waypoint, rough_approach_time, req_elbow)
             t.addWaypoint(goal.waypoint_1,fine_approach_time, req_elbow)
             t.addWaypoint(goal.waypoint_2,goal.duration, req_elbow)
+            t.addWaypoint(depart_waypoint, fine_depart_time, req_elbow)
 
             if(goal.approach_from_above):
-                t.addWaypoint(depart_waypoint, fine_depart_time, req_elbow)
+                post_depart_waypoint = depart_waypoint
+                post_depart_waypoint[0] += (VERT_HORZ_APPROACH_DIST * np.sign(-goal.waypoint_1[0]))
+                post_depart_time = dist(depart_waypoint, post_depart_waypoint) / SPEED_DEPART
+                t.addWaypoint(post_depart_waypoint, post_depart_time, req_elbow)
 
         if(goal.type == TYPE_REST):
             if(cur_elbow):
@@ -321,17 +325,17 @@ class ArmPlannerNode(object):
 
     # Callbacks for hebiros action client
     def trajectory_active_cb(self):
-        rospy.loginfo(IDSTR+"Action is now active")
-
+        # rospy.loginfo(IDSTR+"Action is now active")
+        pass
     def trajectory_feedback_cb(self, msg):
         # rospy.loginfo("Trajectory fb")
         # rospy.loginfo(msg)
         pass
 
     def trajectory_done_cb(self,state,result):
-        rospy.loginfo(IDSTR+"Action is now done")
-        rospy.loginfo(state)
-        rospy.loginfo(result)
+        # rospy.loginfo(IDSTR+"Action is now done")
+        # rospy.loginfo(state)
+        # rospy.loginfo(result)
         self.hebi_is_done = True
 
 
@@ -349,7 +353,7 @@ class ArmPlannerNode(object):
         # Call the entry_list service, displaying each module on the network
         # entry_list_srv.response.entry_list will now be populated with those modules
         entry_resp = self.entry_list_client.call()
-        rospy.loginfo(entry_resp)
+        # rospy.loginfo(entry_resp)
 
         # Construct a group
         group_name = GROUP_NAME
@@ -368,7 +372,7 @@ class ArmPlannerNode(object):
 
         # Call the size service for the newly created group
         size_resp = self.size_client.call()
-        rospy.loginfo("%s has been created and has size %d" %(group_name, size_resp.size))
+        # rospy.loginfo("%s has been created and has size %d" %(group_name, size_resp.size))
 
         # Wait until we have recieved  first hebi fb
         while(not self.recievedFirstHebiFb):

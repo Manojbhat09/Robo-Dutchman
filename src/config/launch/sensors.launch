@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-<!--    <include file="$(find realsense2_camera)/launch/rs_camera.launch"/> -->
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch"/> 
     <include file="$(find rplidar_ros)/launch/rplidar.launch"/>
     <node pkg="localization" type="lidar_processor.py" name="lidar_processor" output="screen"/>
     <node pkg="hebiros" type="hebiros_node" name="hebi"/>
+
+<!--
+    <node pkg="obiwan" type="obiwancpp" name="obiwancpp" output="screen">
+        <param name="param_debug" value="1" />
+    </node>
+-->
 </launch>

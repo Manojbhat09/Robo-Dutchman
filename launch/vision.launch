@@ -1,0 +1,6 @@
+<launch>
+   <!-- <include file="$(find config)/launch/sensors.launch"/> -->
+    <node pkg="obiwan" type="obiwancpp" name="obiwancpp" output="screen">
+        <param name="param_debug" value="1" />
+    </node>
+</launch>

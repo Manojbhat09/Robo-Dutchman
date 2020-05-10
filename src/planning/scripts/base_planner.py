@@ -22,13 +22,13 @@ class BasePlanner(object):
         self.receieved_fb = False
 
         # Planner attributes
-        self.ang_vel_max = rospy.get_param('~ang_vel_max', 2.5)
+        self.ang_vel_max = rospy.get_param('~ang_vel_max', 0.3)
         self.ang_acc = rospy.get_param('~ang_acc', 2)
-        self.lin_vel_max = rospy.get_param('~lin_vel_max', 0.4)
+        self.lin_vel_max = rospy.get_param('~lin_vel_max', 0.2)
         self.lin_acc = rospy.get_param('~lin_acc', 0.4)
 
         self.state = [0, 0, 0]
-	self.state_odom = [0, 0, 0]
+        self.state_odom = [0, 0, 0]
         self.target = [0, 0, 0]
         self.L = 0.4064 # 16in = 0.4064m
         self.R = 0.0635 # 2.5in = 0.0635m
@@ -57,19 +57,6 @@ class BasePlanner(object):
 
     def pose_callback(self, msg):
         # extract state information
-        """
-        self.state[0] = msg.position.x
-        self.state[1] = msg.position.y
-
-        quat = [0, 0, 0, 0]
-        quat[0] = msg.orientation.x
-        quat[1] = msg.orientation.y
-        quat[2] = msg.orientation.z
-        quat[3] = msg.orientation.w
-
-        (_, _, yaw) = euler_from_quaternion(quat)
-        self.state[2] = yaw
-        """
 
         # get transform information
         try:
@@ -79,24 +66,24 @@ class BasePlanner(object):
             self.state[1] = trans[1]
 
             (_,_,yaw) = euler_from_quaternion(rot)
+            # yaw = np.arctan2(np.sin(yaw), np.cos(yaw))
             self.state[2] = yaw
 #            print(self.state)
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
 
-	try:
+        try:
             (trans,rot) = self.listener.lookupTransform('/odom', '/base_link', rospy.Time(0))
 
             self.state_odom[0] = trans[0]
             self.state_odom[1] = trans[1]
 
             (_,_,yaw) = euler_from_quaternion(rot)
+            # yaw = np.arctan2(np.sin(yaw), np.cos(yaw))
             self.state_odom[2] = yaw
 #            print(self.state)
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
             pass
-
-
 
     def target_pose_callback(self, msg):
         # extract target information
@@ -114,16 +101,16 @@ class BasePlanner(object):
 
         # do pre-rotation
         point_ang_forward = np.arctan2(self.target[1] - self.state[1], self.target[0] - self.state[0])
-	point_ang_reverse = point_ang_forward + np.pi
-	point_ang_reverse = np.arctan2(np.sin(point_ang_reverse), np.cos(point_ang_reverse))
+        point_ang_reverse = point_ang_forward + np.pi
+        point_ang_reverse = np.arctan2(np.sin(point_ang_reverse), np.cos(point_ang_reverse))
 
-	reverse_step1 = point_ang_reverse - self.state[2]
-	reverse_step1 = np.arctan2(np.sin(reverse_step1), np.cos(reverse_step1))
-	reverse_step2 = self.target[2] - point_ang_reverse
+        reverse_step1 = point_ang_reverse - self.state[2]
+        reverse_step1 = np.arctan2(np.sin(reverse_step1), np.cos(reverse_step1))
+        reverse_step2 = self.target[2] - point_ang_reverse
         reverse_step2 = np.arctan2(np.sin(reverse_step2), np.cos(reverse_step2))
-	reverse_mag = abs(reverse_step1) + abs(reverse_step2)
+        reverse_mag = abs(reverse_step1) + abs(reverse_step2)
 
-	forward_step1 = point_ang_forward - self.state[2]
+        forward_step1 = point_ang_forward - self.state[2]
         forward_step1 = np.arctan2(np.sin(forward_step1), np.cos(forward_step1))
         forward_step2 = self.target[2] - point_ang_forward
         forward_step2 = np.arctan2(np.sin(forward_step2), np.cos(forward_step2))
@@ -135,7 +122,7 @@ class BasePlanner(object):
         point_ang = point_ang_forward
 
         if reverse_mag < forward_mag:
-	    reverse = True
+            reverse = True
             ang = point_ang_reverse - self.state[2]
             point_ang = point_ang_reverse
 
@@ -162,32 +149,39 @@ class BasePlanner(object):
 
     def rotate(self, target_ang):
         print("target: %f" %(target_ang))
-        ang_thresh = 0.06
+        ang_thresh = 0.02
+        
+        target_ang = np.arctan2(np.sin(target_ang), np.cos(target_ang))
         ang_diff = target_ang - self.state[2]
         ang_diff = np.arctan2(np.sin(ang_diff), np.cos(ang_diff))
 
-	print("ang_diff: %f" %(ang_diff))
+        print("ang_diff: %f" %(ang_diff))
 
-	target_ang_odom = self.state_odom[2] + ang_diff
-	target_ang_odom = np.arctan2(np.sin(target_ang_odom), np.cos(target_ang_odom))
+        target_ang_odom = self.state_odom[2] + ang_diff
+        target_ang_odom = np.arctan2(np.sin(target_ang_odom), np.cos(target_ang_odom))
 
-	print("start odom: %f" %(self.state_odom[2]))
-	print("target odom: %f" %(target_ang_odom))
+        ang_diff = target_ang_odom - self.state_odom[2]
+        ang_diff = np.arctan2(np.sin(ang_diff), np.cos(ang_diff))
+
+        print("ang diff odom: %f" %(ang_diff))
+
+        print("start odom: %f" %(self.state_odom[2]))
+        print("target odom: %f" %(target_ang_odom))
 
         k = 2
 
-#	timeout = 2 * abs(ang_diff) / self.ang_vel_max
-	timeout = 10
+    #	timeout = 2 * abs(ang_diff) / self.ang_vel_max
+        timeout = 10
 
         timer = time.time()
-	start_time = time.time()
+        start_time = time.time()
 
         while abs(ang_diff) > ang_thresh and (time.time() - start_time < timeout):
             if (time.time() - timer) > self.dt:
-#                print("ang diff: %f" %(ang_diff))
+    #                print("ang diff: %f" %(ang_diff))
                 timer = time.time()
-#                ang_diff = target_ang - self.state[2]
-		ang_diff = target_ang_odom - self.state_odom[2]
+    #                ang_diff = target_ang - self.state[2]
+                ang_diff = target_ang_odom - self.state_odom[2]
                 ang_diff = np.arctan2(np.sin(ang_diff), np.cos(ang_diff))
 
                 w = min(self.ang_vel_max, abs(ang_diff) * k)
@@ -200,12 +194,12 @@ class BasePlanner(object):
         self.send_vels(0, 0)
 
     def move_straight(self, start, end, reverse):
-        dist_thresh = 0.03
+        dist_thresh = 0.04
         dist = np.sqrt((start[1] - end[1])**2 + (start[0] - end[0])**2)
         k = 2
 
 #        timeout = 2 * dist / self.lin_vel_max
-	timeout = 10
+        timeout = 10
 
         pp = PurePursuit(start, end)
         start_time = time.time()
@@ -226,57 +220,16 @@ class BasePlanner(object):
 
         self.send_vels(0, 0)
 
-    def trapezoidal_trajectory(self, d, max_vel, accel, dt):
-        t_ramp = max_vel / accel
-        t_end = 0
-
-        if (d >= t_ramp * max_vel):
-            t_end = (abs(d) / max_vel) + t_ramp
-        else:
-            t_end = 2 * np.sqrt(abs(d) / accel)
-
-        traj = []
-
-        for t in np.arange(0, t_end+1, dt):
-            vel = self.trapezoidal_trajectory_step(t, d, max_vel, accel)
-            traj.append((t, vel))
-
-        return traj
-
-
-    def trapezoidal_trajectory_step(self, t, d, max_vel, accel):
-        t_ramp = max_vel / accel
-        sign = 1
-        if d < 0:
-            sign = -1
-
-        if (d >= t_ramp * max_vel):
-            t_end = (abs(d) / max_vel) + t_ramp
-
-            if (t < t_ramp):
-                return sign * t * accel
-            elif (t < t_end - t_ramp):
-                return sign * max_vel
-            elif (t < t_end):
-                return sign * (t_end - t) * accel
-            else:
-                return 0
-        else:
-            t_mid = np.sqrt(abs(d) / accel)
-            t_end = 2 * t_mid
-
-            if (t < t_mid):
-                return sign * t * accel
-            elif (t < t_end):
-                return sign * (t_end - t) * accel
-            else:
-                return 0
-
     def send_vels(self, v, w):
         vl = (2.0 * v - self.L * w) / 2.0
         vr = (2.0 * v + self.L * w) / 2.0
 
 #        print("%f %f" %(vl, vr))
+        local_max = max([vl, vr])
+
+        if local_max != 0 and local_max > self.lin_vel_max:
+            vl = (self.lin_vel_max / local_max) * vl
+            vr = (self.lin_vel_max / local_max) * vr
 
         hebi_cmd = JointState()
         hebi_cmd.name = self.hebi_paths

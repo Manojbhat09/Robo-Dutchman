@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="planning" type="central_planner.py" name="central_planner" output="screen">
+    <node pkg="planning" type="central_planner_2.py" name="central_planner" output="screen">
         <rosparam>
             mission_name: mission2.txt
         </rosparam>
